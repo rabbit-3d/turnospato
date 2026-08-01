@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0F6E56">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Consultorio</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    html{height:100%;-webkit-text-size-adjust:100%;}
+    body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:#F1F5F9;color:#1E293B;height:100%;overflow:hidden;}
+    button,select,input,textarea{font-family:inherit;font-size:15px;}
+    input,select,textarea{-webkit-appearance:none;appearance:none;}
+    :root{
+      --teal:#0F6E56;--teal-d:#0a5c47;--teal-l:#ECFDF5;--teal-m:#D1FAE5;
+      --purple:#7C3AED;--purple-l:#EDE9FE;
+      --red:#DC2626;--red-l:#FEF2F2;--red-m:#FEE2E2;
+      --amber:#D97706;--amber-l:#FFFBEB;--amber-m:#FEF3C7;
+      --green:#16A34A;--green-l:#F0FDF4;
+      --border:#E2E8F0;--bg:#F1F5F9;--card:#FFFFFF;
+      --text:#1E293B;--text2:#475569;--text3:#94A3B8;
+      --r:12px;--rl:16px;--rxl:20px;
+      --nav-h:68px;--hdr-h:60px;--sidebar-w:240px;
+      --safe-bottom:env(safe-area-inset-bottom,0px);
+      --shadow-sm:0 1px 2px rgba(0,0,0,.06);
+      --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);
+      --shadow-md:0 4px 12px rgba(0,0,0,.08);
+      --shadow-lg:0 10px 24px rgba(0,0,0,.12);
+    }
+    .hidden{display:none!important;}
+
+    /* ── App layout ── */
+    #app{display:flex;height:100vh;height:100dvh;overflow:hidden;}
+    .main-wrap{flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;}
+    .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px;padding-bottom:calc(var(--nav-h) + var(--safe-bottom) + 80px);}
+
+    /* ── Sidebar (tablet+) ── */
+    .sidebar{width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);display:none;flex-direction:column;flex-shrink:0;overflow-y:auto;}
+    @media(min-width:768px){
+      .sidebar{display:flex;}
+      .content{padding-bottom:24px;}
+    }
+    .sidebar-top{padding:24px 16px 16px;}
+    .s-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+    .s-logo-icon{width:42px;height:42px;border-radius:12px;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+    .s-logo-name{font-weight:700;font-size:15px;color:var(--text);}
+    .s-logo-sub{font-size:11px;color:var(--text3);}
+    .s-nav{display:flex;flex-direction:column;gap:2px;}
+    .s-btn{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:var(--r);border:none;cursor:pointer;background:transparent;color:var(--text2);font-size:14px;font-weight:500;text-align:left;width:100%;transition:background .15s,color .15s;}
+    .s-btn span:first-child{font-size:18px;width:22px;text-align:center;}
+    .s-btn.active{background:var(--teal-l);color:var(--teal);font-weight:700;}
+    .s-btn.adm{background:var(--purple-l);color:var(--purple);font-weight:700;}
+    .s-btn:hover:not(.active):not(.adm){background:#F8FAFC;}
+    .admin-badge{display:inline-flex;align-items:center;gap:4px;background:var(--purple-l);color:var(--purple);font-size:10px;font-weight:700;padding:3px 10px;border-radius:99px;margin-bottom:16px;}
+    .viewas-banner{background:#FFFBEB;border:1px solid #FCD34D;border-radius:var(--r);padding:10px 12px;margin-bottom:12px;}
+    .viewas-lbl{font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;letter-spacing:.05em;}
+    .viewas-name{font-size:13px;font-weight:600;color:#78350F;margin-top:2px;}
+    .btn-back{display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;font-size:13px;color:var(--purple);font-weight:600;padding:4px 0;margin-top:6px;}
+    .s-today{padding:0 16px 16px;}
+    .s-today-box{background:var(--teal-l);border-radius:var(--rl);padding:14px 16px;}
+    .s-today-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;}
+    .s-today-stats{display:flex;gap:20px;}
+    .s-stat .num{font-size:26px;font-weight:700;line-height:1;}
+    .s-stat .lbl{font-size:11px;color:var(--text2);margin-top:2px;}
+    .s-stat.teal .num{color:var(--teal);}
+    .s-stat.gray .num{color:#374151;}
+    .s-user{padding:0 16px 12px;}
+    .s-user-pill{display:flex;align-items:center;gap:10px;background:#F8FAFC;border-radius:var(--r);padding:10px 12px;}
+    .s-user-av{width:32px;height:32px;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--teal);flex-shrink:0;}
+    .s-user-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .s-user-role{font-size:11px;color:var(--text3);}
+    .s-footer{margin-top:auto;padding:12px 16px 16px;border-top:1px solid var(--border);}
+    .s-logout{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);cursor:pointer;color:var(--text2);font-size:13px;font-weight:500;}
+    .s-logout:hover{background:#F8FAFC;}
+
+    /* ── Topbar ── */
+    .topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 16px;height:var(--hdr-h);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;}
+    .topbar-left{display:flex;align-items:center;gap:8px;min-width:0;}
+    .topbar-title{font-size:17px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    @media(min-width:768px){.topbar-title{font-size:18px;}}
+
+    /* ── Bottom Nav (mobile) ── */
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav-h) + var(--safe-bottom));background:var(--card);border-top:1px solid var(--border);display:flex;align-items:flex-start;padding-top:4px;z-index:100;box-shadow:0 -2px 12px rgba(0,0,0,.06);}
+    @media(min-width:768px){.bottom-nav{display:none;}}
+    .bn-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 4px;border:none;background:transparent;cursor:pointer;color:var(--text3);transition:color .15s;}
+    .bn-item.active{color:var(--teal);}
+    .bn-item.adm-active{color:var(--purple);}
+    .bn-icon{font-size:22px;line-height:1;}
+    .bn-label{font-size:10px;font-weight:600;letter-spacing:.02em;}
+    .bn-dot{width:4px;height:4px;border-radius:50%;background:var(--teal);margin-top:1px;}
+
+    /* ── FAB ── */
+    .fab{position:fixed;bottom:calc(var(--nav-h) + var(--safe-bottom) + 16px);right:16px;width:56px;height:56px;border-radius:50%;background:var(--teal);color:#fff;font-size:28px;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(15,110,86,.4);display:flex;align-items:center;justify-content:center;z-index:99;transition:transform .15s,box-shadow .15s;line-height:1;}
+    .fab:active{transform:scale(.93);box-shadow:0 2px 8px rgba(15,110,86,.3);}
+    @media(min-width:768px){.fab{display:none!important;}}
+
+    /* ── Buttons ── */
+    .btn{padding:10px 18px;border:1px solid var(--border);border-radius:var(--r);background:var(--card);cursor:pointer;color:var(--text2);font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:6px;transition:background .15s;}
+    .btn:hover{background:#F8FAFC;}
+    .btn:active{opacity:.8;}
+    .btn:disabled{opacity:.45;cursor:not-allowed;}
+    .btn-primary{background:var(--teal);color:#fff;border-color:transparent;}
+    .btn-primary:hover{background:var(--teal-d);}
+    .btn-purple{background:var(--purple);color:#fff;border-color:transparent;}
+    .btn-purple:hover{background:#6D28D9;}
+    .btn-danger{color:var(--red);border-color:#FECACA;}
+    .btn-danger:hover{background:var(--red-l);}
+    .btn-sm{padding:7px 14px;font-size:13px;}
+    .btn-xs{padding:5px 10px;font-size:12px;}
+    .btn-nav{padding:8px 12px;font-size:18px;}
+    .btn-ghost{border:none;background:transparent;color:var(--text3);}
+
+    /* ── Cards ── */
+    .card{background:var(--card);border-radius:var(--rl);border:1px solid var(--border);box-shadow:var(--shadow-sm);}
+
+    /* ── Forms ── */
+    .field{display:flex;flex-direction:column;gap:6px;}
+    .field-label{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;}
+    .input,.select,.textarea{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:var(--r);font-size:15px;outline:none;color:var(--text);background:var(--card);transition:border-color .15s;}
+    .input:focus,.select:focus,.textarea:focus{border-color:var(--teal);}
+    .textarea{resize:vertical;min-height:80px;}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .section-divider{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:4px 0 8px;border-top:1px solid var(--border);margin-top:4px;}
+
+    /* ── Modal ── */
+    .overlay{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:200;display:flex;align-items:flex-end;backdrop-filter:blur(2px);}
+    @media(min-width:768px){.overlay{align-items:center;justify-content:center;}}
+    .modal{background:var(--card);width:100%;max-height:93vh;border-radius:20px 20px 0 0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;}
+    @media(min-width:768px){.modal{max-width:480px;border-radius:var(--rxl);max-height:90vh;}}
+    .modal-handle{width:40px;height:4px;background:#CBD5E1;border-radius:99px;margin:12px auto 4px;}
+    .modal-head{padding:8px 20px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0;}
+    .modal-head h3{font-size:17px;font-weight:700;}
+    .modal-close{width:32px;height:32px;border-radius:50%;background:#F1F5F9;border:none;cursor:pointer;font-size:18px;color:var(--text3);display:flex;align-items:center;justify-content:center;}
+    .modal-body{padding:20px;display:flex;flex-direction:column;gap:16px;flex:1;overflow-y:auto;}
+    .modal-foot{padding:16px 20px calc(16px + var(--safe-bottom));border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px;flex-shrink:0;background:var(--card);}
+    @media(min-width:768px){.modal-foot{padding-bottom:16px;}}
+    .modal-foot-r{display:flex;gap:10px;}
+
+    /* ── Login ── */
+    #login-screen{height:100vh;height:100dvh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a5c47 0%,#0F6E56 50%,#1a8f6e 100%);padding:20px;}
+    .lc-wrap{width:100%;max-width:380px;}
+    .lc-header{text-align:center;margin-bottom:32px;}
+    .lc-icon{width:72px;height:72px;border-radius:22px;background:rgba(255,255,255,.15);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 16px;border:1px solid rgba(255,255,255,.2);}
+    .lc-title{font-size:24px;font-weight:700;color:#fff;margin-bottom:6px;}
+    .lc-sub{color:rgba(255,255,255,.7);font-size:14px;}
+    .lc-card{background:rgba(255,255,255,.97);border-radius:20px;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+    .lc-form{display:flex;flex-direction:column;gap:16px;}
+    .lc-input{width:100%;padding:14px 16px;border:1.5px solid var(--border);border-radius:var(--r);font-size:16px;outline:none;transition:border-color .15s;color:var(--text);}
+    .lc-input:focus{border-color:var(--teal);}
+    .lc-btn{padding:14px;background:var(--teal);color:#fff;border:none;border-radius:var(--r);font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;}
+    .lc-btn:hover{background:var(--teal-d);}
+    .lc-btn:disabled{background:#94A3B8;cursor:not-allowed;}
+    .lc-error{background:#FEF2F2;color:#991B1B;font-size:13px;padding:12px 14px;border-radius:var(--r);font-weight:500;border:1px solid #FECACA;display:none;}
+    .lc-footer{text-align:center;font-size:12px;color:rgba(255,255,255,.6);margin-top:20px;}
+
+    /* ── Calendar mobile ── */
+    .cal-header-mobile{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+    .cal-month-label{font-size:16px;font-weight:700;color:var(--text);}
+    .cal-header-actions{display:flex;gap:6px;align-items:center;}
+    .day-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:16px;}
+    .day-strip::-webkit-scrollbar{display:none;}
+    .day-pill{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 10px;border-radius:14px;border:none;background:transparent;cursor:pointer;min-width:44px;flex-shrink:0;transition:background .15s;}
+    .day-pill .dp-name{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;}
+    .day-pill .dp-num{font-size:17px;font-weight:600;color:var(--text2);}
+    .day-pill .dp-dot{width:5px;height:5px;border-radius:50%;background:transparent;}
+    .day-pill.has-appt .dp-dot{background:var(--teal);}
+    .day-pill.active{background:var(--teal);}
+    .day-pill.active .dp-name{color:rgba(255,255,255,.8);}
+    .day-pill.active .dp-num{color:#fff;}
+    .day-pill.active .dp-dot{background:rgba(255,255,255,.6);}
+    .day-pill.is-today .dp-num{color:var(--teal);}
+    .day-pill.active.is-today .dp-num{color:#fff;}
+    .appt-day-list{display:flex;flex-direction:column;gap:10px;}
+    .appt-day-card{background:var(--card);border-radius:var(--rl);border:1px solid var(--border);padding:14px 16px;cursor:pointer;box-shadow:var(--shadow-sm);transition:box-shadow .15s;display:flex;gap:14px;align-items:flex-start;}
+    .appt-day-card:active{box-shadow:none;opacity:.8;}
+    .appt-time-col{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;padding-top:2px;}
+    .appt-time{font-size:13px;font-weight:700;color:var(--text2);}
+    .appt-time-end{font-size:11px;color:var(--text3);}
+    .appt-type-bar{width:4px;flex:1;min-height:30px;border-radius:99px;flex-shrink:0;}
+    .appt-info{flex:1;min-width:0;}
+    .appt-patient{font-size:15px;font-weight:700;color:var(--text);}
+    .appt-detail{font-size:13px;color:var(--text2);margin-top:2px;}
+    .appt-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
+    .empty-day{background:var(--card);border-radius:var(--rl);border:1px dashed var(--border);padding:36px 20px;text-align:center;}
+    .empty-day-icon{font-size:40px;margin-bottom:12px;}
+    .empty-day-text{font-size:15px;color:var(--text2);font-weight:500;margin-bottom:4px;}
+    .empty-day-sub{font-size:13px;color:var(--text3);}
+
+    /* ── Calendar tablet week view ── */
+    .cal-week-wrap{background:var(--card);border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;}
+    .cal-week-scroll{overflow-x:auto;}
+    .cal-week-inner{min-width:680px;}
+    .cal-week-head{display:grid;grid-template-columns:52px repeat(6,minmax(0,1fr));border-bottom:1px solid var(--border);}
+    .cwh{text-align:center;padding:10px 4px 8px;border-left:1px solid #F3F4F6;}
+    .cwh-name{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+    .cwh-num{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;margin-top:4px;font-size:15px;font-weight:500;}
+    .cwh-num.today{background:var(--teal);color:#fff;font-weight:700;}
+    .cwh-mon{font-size:10px;color:var(--text3);margin-top:1px;}
+    .cal-week-row{display:grid;grid-template-columns:52px repeat(6,minmax(0,1fr));border-bottom:1px solid #F3F4F6;min-height:68px;}
+    .cwt{text-align:right;padding-right:10px;padding-top:8px;font-size:11px;color:var(--text3);font-weight:500;user-select:none;}
+    .cwslot{border-left:1px solid #F3F4F6;padding:3px 4px;cursor:pointer;transition:background .1s;}
+    .cwslot:hover{background:#F8FAFC;}
+    .cwslot.busy{cursor:default;background:transparent!important;}
+    .cw-hint{font-size:11px;color:var(--text3);padding:4px 0 0 2px;display:none;}
+    .cwslot:hover .cw-hint{display:block;}
+    .cw-card{border-radius:6px;padding:4px 7px;margin-bottom:2px;cursor:pointer;}
+    .cw-card .ct{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .cw-card .cs{font-size:10px;color:#6B7280;}
+    .cw-cont{border-radius:6px;padding:4px 7px;margin-bottom:2px;cursor:pointer;opacity:.75;background-image:repeating-linear-gradient(-45deg,transparent,transparent 4px,rgba(0,0,0,.04) 4px,rgba(0,0,0,.04) 8px);}
+    .cw-cont .ct{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .cw-cont .cs{font-size:10px;color:#6B7280;}
+
+    /* ── Patients ── */
+    .search-bar{position:relative;margin-bottom:16px;}
+    .search-bar .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text3);}
+    .search-input{width:100%;padding:12px 14px 12px 42px;border:1.5px solid var(--border);border-radius:99px;font-size:15px;outline:none;background:var(--card);}
+    .search-input:focus{border-color:var(--teal);}
+    .patient-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px;cursor:pointer;display:flex;align-items:center;gap:14px;margin-bottom:10px;box-shadow:var(--shadow-sm);transition:box-shadow .15s;}
+    .patient-card:active{box-shadow:none;opacity:.85;}
+    .p-av{width:48px;height:48px;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--teal);flex-shrink:0;}
+    .p-info{flex:1;min-width:0;}
+    .p-name{font-weight:700;font-size:15px;color:var(--text);}
+    .p-details{font-size:13px;color:var(--text2);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap;}
+    .p-notes{font-size:12px;color:var(--text3);margin-top:3px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .p-meta{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;}
+    .p-right{text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+    .p-count-num{font-size:22px;font-weight:700;color:var(--teal);line-height:1;}
+    .p-count-lbl{font-size:10px;color:var(--text3);}
+
+    /* ── History ── */
+    .filter-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+    .filter-chips::-webkit-scrollbar{display:none;}
+    .filter-chip{flex-shrink:0;padding:7px 14px;border-radius:99px;border:1.5px solid var(--border);background:var(--card);font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;white-space:nowrap;}
+    .filter-chip.active{background:var(--teal);color:#fff;border-color:transparent;}
+    .stat-strip{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px;scrollbar-width:none;}
+    .stat-strip::-webkit-scrollbar{display:none;}
+    .stat-pill{flex-shrink:0;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;display:flex;align-items:center;gap:6px;}
+    .stat-pill .num{font-weight:700;font-size:16px;}
+    .stat-pill .lbl{font-size:12px;color:var(--text2);}
+    .h-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;display:flex;gap:12px;align-items:flex-start;margin-bottom:8px;box-shadow:var(--shadow-sm);}
+    .h-bar{width:4px;align-self:stretch;border-radius:4px;flex-shrink:0;min-height:40px;}
+    .h-body{flex:1;min-width:0;}
+    .h-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap;}
+    .h-name{font-weight:700;font-size:15px;color:var(--text);}
+    .badges{display:flex;gap:6px;flex-wrap:wrap;}
+    .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:99px;}
+    .h-meta{font-size:13px;color:var(--text2);margin-top:5px;display:flex;gap:10px;flex-wrap:wrap;}
+
+    /* ── Payment badges ── */
+    .pay-badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;}
+    .pay-pagado{background:var(--green-l);color:var(--green);}
+    .pay-parcial{background:var(--amber-m);color:var(--amber);}
+    .pay-no_pagado{background:var(--red-m);color:var(--red);}
+
+    /* ── Deudores ── */
+    .summary-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+    .summary-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px;box-shadow:var(--shadow-sm);}
+    .summary-card .sc-num{font-size:22px;font-weight:700;color:var(--teal);}
+    .summary-card.red .sc-num{color:var(--red);}
+    .summary-card .sc-lbl{font-size:12px;color:var(--text3);margin-top:2px;}
+    .debt-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;margin-bottom:10px;box-shadow:var(--shadow-sm);}
+    .debt-card-top{display:flex;align-items:center;gap:14px;padding:16px;}
+    .debt-info{flex:1;min-width:0;}
+    .debt-name{font-weight:700;font-size:15px;color:var(--text);}
+    .debt-phone{font-size:13px;color:var(--text2);margin-top:2px;}
+    .debt-since{font-size:11px;color:var(--text3);margin-top:2px;}
+    .debt-amount-col{text-align:right;flex-shrink:0;}
+    .debt-total{font-size:22px;font-weight:700;color:var(--red);}
+    .debt-sub{font-size:11px;color:var(--text3);}
+    .debt-appts{border-top:1px solid var(--border);padding:0 16px;}
+    .debt-appt-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F8FAFC;gap:8px;}
+    .debt-appt-row:last-child{border-bottom:none;}
+    .dar-left{flex:1;min-width:0;}
+    .dar-date{font-size:13px;font-weight:600;color:var(--text);}
+    .dar-type{font-size:12px;color:var(--text2);margin-top:1px;}
+    .dar-right{text-align:right;flex-shrink:0;}
+    .dar-owed{font-size:14px;font-weight:700;color:var(--red);}
+
+    /* ── Admin ── */
+    .admin-grid{display:grid;grid-template-columns:1fr;gap:12px;}
+    @media(min-width:600px){.admin-grid{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));}}
+    .dentist-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow-sm);}
+    .dc-top{display:flex;align-items:center;gap:14px;}
+    .dc-av{width:52px;height:52px;border-radius:50%;background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--teal);flex-shrink:0;}
+    .dc-name{font-weight:700;font-size:15px;color:var(--text);}
+    .dc-email{font-size:12px;color:var(--text3);margin-top:2px;}
+    .dc-stat{display:flex;gap:16px;padding:12px 0;border-top:1px solid #F3F4F6;}
+    .dc-stat .num{font-size:20px;font-weight:700;color:var(--teal);}
+    .dc-stat .lbl{font-size:11px;color:var(--text3);}
+    .dc-actions{display:flex;gap:8px;}
+
+    /* ── Odontogram ── */
+    .odonto-wrap{background:var(--card);border-radius:var(--rl);border:1px solid var(--border);padding:16px;box-shadow:var(--shadow-sm);}
+    .odonto-patient-sel{margin-bottom:16px;}
+    .odonto-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+    .odonto-tool{padding:8px 16px;border-radius:99px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);}
+    .odonto-tool.fractura.active{background:#DC2626;color:#fff;border-color:transparent;}
+    .odonto-tool.restauracion.active{background:#185FA5;color:#fff;border-color:transparent;}
+    .odonto-tool.extraccion.active{background:#374151;color:#fff;border-color:transparent;}
+    .odonto-tool.puente.active{background:#7C3AED;color:#fff;border-color:transparent;}
+    .odonto-tool.borrar.active{background:#6B7280;color:#fff;border-color:transparent;}
+    .odonto-canvas-wrap{position:relative;width:810px;height:210px;margin:0;overflow:hidden;}
+    .odonto-canvas-wrap canvas{position:absolute;left:0;top:0;}
+    .odonto-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid var(--border);margin-bottom:14px;}
+    .odonto-legend{display:flex;gap:14px;flex-wrap:wrap;}
+    .ol-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);}
+    .ol-dot{width:12px;height:12px;border-radius:2px;}
+
+    /* ── Patient history modal ── */
+    .hist-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+    .hs-card{background:#F8FAFC;border-radius:var(--r);padding:12px;text-align:center;}
+    .hs-card .num{font-size:18px;font-weight:700;}
+    .hs-card .lbl{font-size:10px;color:var(--text3);margin-top:2px;}
+    .hs-card.green .num{color:var(--green);}
+    .hs-card.red .num{color:var(--red);}
+    .hs-card.teal .num{color:var(--teal);}
+    .hist-appt{padding:12px 0;border-bottom:1px solid #F8FAFC;}
+    .hist-appt:last-child{border-bottom:none;}
+    .hist-appt-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+    .hist-appt-info .date{font-size:14px;font-weight:600;color:var(--text);}
+    .hist-appt-info .type{font-size:12px;color:var(--text2);margin-top:2px;}
+    .hist-appt-right{text-align:right;}
+    .hist-amount{font-size:14px;font-weight:700;color:var(--text);}
+    .hist-owed{font-size:12px;color:var(--red);margin-top:2px;}
+
+    /* ── Empty / Loading ── */
+    .empty-state{text-align:center;padding:48px 20px;color:var(--text3);}
+    .empty-state .ei{font-size:48px;margin-bottom:14px;}
+    .empty-state .et{font-size:15px;color:var(--text2);font-weight:500;margin-bottom:6px;}
+    .empty-state .es{font-size:13px;}
+    .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--teal-l);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loading-state{text-align:center;padding:64px 20px;color:var(--text3);}
+
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:calc(var(--nav-h) + var(--safe-bottom) + 12px);left:50%;transform:translateX(-50%) translateY(60px);background:#1E293B;color:#fff;padding:12px 20px;border-radius:99px;font-size:14px;font-weight:500;opacity:0;transition:transform .3s,opacity .3s;z-index:999;white-space:nowrap;box-shadow:var(--shadow-md);}
+    #toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+    #toast.error{background:#991B1B;}
+    @media(min-width:768px){#toast{bottom:24px;}}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="hidden">
+  <div class="lc-wrap">
+    <div class="lc-header">
+      <div class="lc-icon">🦷</div>
+      <div class="lc-title">Consultorio</div>
+      <div class="lc-sub">Sistema de gestión odontológica</div>
+    </div>
+    <div class="lc-card">
+      <div class="lc-form">
+        <div class="field"><label class="field-label">Email</label><input id="login-email" class="lc-input" type="email" placeholder="tu@email.com" autocomplete="email" inputmode="email"/></div>
+        <div class="field"><label class="field-label">Contraseña</label><input id="login-pass" class="lc-input" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+        <div id="login-error" class="lc-error">Email o contraseña incorrectos.</div>
+        <button id="login-btn" class="lc-btn" onclick="doLogin()">Ingresar</button>
+      </div>
+    </div>
+    <div class="lc-footer">Acceso privado · Solo uso interno</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <aside class="sidebar" id="sidebar"></aside>
+  <div class="main-wrap">
+    <header class="topbar" id="topbar">
+      <div class="topbar-left" id="topbar-left"></div>
+      <div id="topbar-right"></div>
+    </header>
+    <div class="content" id="content"></div>
+  </div>
+  <nav class="bottom-nav hidden" id="bottom-nav"></nav>
+  <button class="fab hidden" id="fab">+</button>
+</div>
+
+<!-- MODAL -->
+<div id="overlay" class="overlay hidden" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-head"><h3 id="modal-title"></h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot" id="modal-foot"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════
+//  ⚠️  CONFIGURACIÓN
+// ════════════════════════════════════════════════════
+const CONFIG={
+  supabaseUrl:"https://dgjlaftklsxxveklxidx.supabase.co",
+  supabaseKey:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRnamxhZnRrbHN4eHZla2x4aWR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNjYwNjUsImV4cCI6MjA5Nzc0MjA2NX0.CJLUjR9DaYA6NDQjEOkW-fBVuOOHMD9HJ2RJOM8lAgU",
+  adminEmail:"mateoduarte02@gmail.com",
+  adminPassword:"mateo19",
+};
+// ════════════════════════════════════════════════════
+
+const{createClient}=supabase;
+const db=createClient(CONFIG.supabaseUrl,CONFIG.supabaseKey);
+
+// ── Constants ──────────────────────────────────────
+const TT=[
+  {id:"consulta",label:"Consulta",color:"#185FA5",bg:"#E6F1FB"},
+  {id:"limpieza",label:"Limpieza",color:"#0F6E56",bg:"#E1F5EE"},
+  {id:"empaste",label:"Empaste",color:"#854F0B",bg:"#FEF3C7"},
+  {id:"extraccion",label:"Extracción",color:"#993C1D",bg:"#FAECE7"},
+  {id:"ortodoncia",label:"Ortodoncia",color:"#534AB7",bg:"#EEEDFE"},
+  {id:"radiografia",label:"Radiografía",color:"#374151",bg:"#F3F4F6"},
+  {id:"cirugia",label:"Cirugía",color:"#9B2C2C",bg:"#FED7D7"},
+  {id:"blanqueamiento",label:"Blanqueamiento",color:"#6B46C1",bg:"#FAF5FF"},
+];
+const ST=[
+  {id:"confirmado",label:"Confirmado",bg:"#DCFCE7",color:"#166534"},
+  {id:"pendiente",label:"Pendiente",bg:"#FEF9C3",color:"#854D0E"},
+  {id:"cancelado",label:"Cancelado",bg:"#FEE2E2",color:"#991B1B"},
+  {id:"completado",label:"Completado",bg:"#E0F2FE",color:"#0369A1"},
+];
+const DURS=[15,30,45,60,90,120];
+const HOURS=Array.from({length:11},(_,i)=>i+8);
+const DAYS=["Lun","Mar","Mié","Jue","Vie","Sáb"];
+const MESES=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const MESES_C=["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+// ── Helpers ────────────────────────────────────────
+const fmtDate=d=>d.toISOString().split("T")[0];
+const today=()=>fmtDate(new Date());
+const uid=p=>`${p}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const findTT=id=>TT.find(t=>t.id===id);
+const findST=id=>ST.find(s=>s.id===id);
+const initials=n=>n.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+const norm=a=>({...a,patientId:a.patient_id??a.patientId});
+const money=n=>`$${(n||0).toLocaleString('es-AR')}`;
+const isMobile=()=>window.innerWidth<768;
+
+function getWeekDays(offset){
+  const d=new Date(),dow=d.getDay();
+  d.setDate(d.getDate()+(dow===0?-6:1-dow)+offset*7);
+  return Array.from({length:6},(_,i)=>{const x=new Date(d);x.setDate(d.getDate()+i);return x;});
+}
+function weekLabel(days){
+  const[f,l]=[days[0],days[5]];
+  if(f.getMonth()===l.getMonth())return`${f.getDate()}–${l.getDate()} ${MESES[f.getMonth()]} ${f.getFullYear()}`;
+  return`${f.getDate()} ${MESES_C[f.getMonth()]} – ${l.getDate()} ${MESES_C[l.getMonth()]} ${l.getFullYear()}`;
+}
+function endTimeStr(time,dur){
+  const[h,m]=time.split(':').map(Number),tot=h*60+m+parseInt(dur);
+  return`${String(Math.floor(tot/60)).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;
+}
+
+// ── Toast ──────────────────────────────────────────
+let _tt;
+function toast(msg,isErr=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='show'+(isErr?' error':'');
+  clearTimeout(_tt);_tt=setTimeout(()=>{t.className='';},2800);
+}
+
+// ── Session ────────────────────────────────────────
+const USER={isAdmin:false,profile:null,viewAs:null};
+function getDentistId(){
+  if(USER.isAdmin&&USER.viewAs)return USER.viewAs.id;
+  if(!USER.isAdmin&&USER.profile)return USER.profile.id;
+  return null;
+}
+function saveSession(){localStorage.setItem('dental_sess',JSON.stringify({isAdmin:USER.isAdmin,profile:USER.profile,viewAs:USER.viewAs}));}
+function loadSession(){
+  try{const s=JSON.parse(localStorage.getItem('dental_sess')||'null');if(!s)return false;USER.isAdmin=s.isAdmin;USER.profile=s.profile;USER.viewAs=s.viewAs??null;return true;}catch{return false;}
+}
+function clearSession(){localStorage.removeItem('dental_sess');USER.isAdmin=false;USER.profile=null;USER.viewAs=null;}
+
+// ── Auth ───────────────────────────────────────────
+document.addEventListener('keydown',e=>{if(!localStorage.getItem('dental_sess')&&e.key==='Enter')doLogin();});
+
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim().toLowerCase();
+  const pass=document.getElementById('login-pass').value;
+  const errEl=document.getElementById('login-error'),btn=document.getElementById('login-btn');
+  errEl.style.display='none';btn.disabled=true;btn.textContent='Ingresando…';
+  await new Promise(r=>setTimeout(r,350));
+  if(email===CONFIG.adminEmail.toLowerCase()&&pass===CONFIG.adminPassword){
+    USER.isAdmin=true;USER.profile={id:'admin',name:'Mateo',email:CONFIG.adminEmail,role:'admin'};USER.viewAs=null;
+    saveSession();await enterApp();return;
+  }
+  const{data,error}=await db.from('profiles').select('*').eq('email',email).single();
+  if(!error&&data&&data.password===pass){
+    USER.isAdmin=false;USER.profile=data;USER.viewAs=null;
+    saveSession();await enterApp();return;
+  }
+  errEl.style.display='block';btn.disabled=false;btn.textContent='Ingresar';
+}
+
+async function enterApp(){
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  S.view=USER.isAdmin&&!USER.viewAs?'admin':'calendar';
+  if(getDentistId())await loadData();
+  renderUI();
+}
+
+function doLogout(){
+  if(!confirm('¿Cerrar sesión?'))return;
+  clearSession();S.patients=[];S.appointments=[];
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('login-pass').value='';
+  document.getElementById('login-btn').disabled=false;document.getElementById('login-btn').textContent='Ingresar';
+}
+
+async function viewAsDentist(d){USER.viewAs=d;saveSession();S.view='calendar';await loadData();renderUI();}
+function backToAdmin(){USER.viewAs=null;saveSession();S.patients=[];S.appointments=[];S.view='admin';renderUI();}
+
+// ── State ──────────────────────────────────────────
+const S={
+  view:'calendar',weekOffset:0,selectedDay:today(),
+  patients:[],appointments:[],dentists:[],
+  search:'',filterType:'',filterStatus:'',filterMonth:'',
+};
+
+// ── Data ───────────────────────────────────────────
+async function loadData(){
+  const did=getDentistId();if(!did){S.patients=[];S.appointments=[];return;}
+  const{data:pts,error:e1}=await db.from('patients').select('*').eq('dentist_id',did).order('name');
+  if(e1)toast('Error al cargar pacientes.',true);
+  S.patients=pts??[];
+  if(S.patients.length>0){
+    const pids=S.patients.map(p=>p.id);
+    const{data:appts,error:e2}=await db.from('appointments').select('*').in('patient_id',pids).order('date').order('time');
+    if(e2)toast('Error al cargar turnos.',true);
+    S.appointments=appts??[];
+  }else S.appointments=[];
+}
+async function loadDentists(){
+  const{data,error}=await db.from('profiles').select('*').order('name');
+  if(error){toast('Error al cargar odontólogos.',true);return;}
+  S.dentists=data??[];
+}
+function showLoading(){document.getElementById('content').innerHTML=`<div class="loading-state"><div class="spinner"></div></div>`;}
+
+// ── UI Orchestrator ────────────────────────────────
+function renderUI(){
+  renderSidebar();
+  renderBottomNav();
+  renderFab();
+  renderMain();
+}
+
+function setView(v){
+  S.view=v;S.search='';S.filterType='';S.filterStatus='';S.filterMonth='';
+  renderUI();
+  document.getElementById('content').scrollTop=0;
+}
+
+function renderMain(){
+  if(S.view==='admin')   renderAdmin();
+  if(S.view==='calendar')renderCalendar();
+  if(S.view==='patients')renderPatients();
+  if(S.view==='history') renderHistory();
+  if(S.view==='odonto')  renderOdonto();
+  if(S.view==='deudores')renderDeudores();
+}
+
+// ── Sidebar ────────────────────────────────────────
+function renderSidebar(){
+  const isViewingAs=USER.isAdmin&&USER.viewAs;
+  const dentistMode=!USER.isAdmin||isViewingAs;
+  const todayAppts=S.appointments.filter(a=>a.date===today()).length;
+  let nav='';
+  if(dentistMode){
+    nav=`${isViewingAs?`<button class="btn-back" onclick="backToAdmin()">← Volver al panel</button>
+      <div class="viewas-banner"><div class="viewas-lbl">Viendo como</div><div class="viewas-name">🦷 ${esc(USER.viewAs.name)}</div></div>`:''}
+      <nav class="s-nav">
+        ${['calendar','patients','history','odonto','deudores'].map((v,_,__)=>`<button class="s-btn${S.view===v?' active':''}" onclick="setView('${v}')"><span>${{calendar:'📅',patients:'👥',history:'📋',odonto:'🦷',deudores:'💰'}[v]}</span><span>${{calendar:'Calendario',patients:'Pacientes',history:'Historial',odonto:'Odontograma',deudores:'Deudores'}[v]}</span></button>`).join('')}
+      </nav>`;
+  }else{
+    nav=`<div class="admin-badge">👑 Administrador</div>
+      <nav class="s-nav"><button class="s-btn adm" onclick="setView('admin')"><span>👑</span><span>Panel admin</span></button></nav>`;
+  }
+  const todayBox=dentistMode?`<div class="s-today"><div class="s-today-box">
+    <div class="s-today-lbl">Hoy</div>
+    <div class="s-today-stats">
+      <div class="s-stat teal"><div class="num">${todayAppts}</div><div class="lbl">turnos</div></div>
+      <div class="s-stat gray"><div class="num">${S.patients.length}</div><div class="lbl">pacientes</div></div>
+    </div></div></div>`:'';
+  document.getElementById('sidebar').innerHTML=`
+    <div class="sidebar-top">
+      <div class="s-logo"><div class="s-logo-icon">🦷</div><div><div class="s-logo-name">Consultorio</div><div class="s-logo-sub">Gestión de turnos</div></div></div>
+      ${nav}
+    </div>
+    ${todayBox}
+    <div class="s-user"><div class="s-user-pill">
+      <div class="s-user-av">${initials(USER.profile?.name??'U')}</div>
+      <div><div class="s-user-name">${esc(USER.profile?.name??'')}</div><div class="s-user-role">${USER.isAdmin?'Administrador':'Odontóloga'}</div></div>
+    </div></div>
+    <div class="s-footer"><button class="s-logout" onclick="doLogout()">🔒 Cerrar sesión</button></div>`;
+}
+
+// ── Bottom Nav ─────────────────────────────────────
+function renderBottomNav(){
+  const nav=document.getElementById('bottom-nav');
+  const isViewingAs=USER.isAdmin&&USER.viewAs;
+  const dentistMode=!USER.isAdmin||isViewingAs;
+  if(!dentistMode&&!isViewingAs&&USER.isAdmin){
+    nav.innerHTML=`<button class="bn-item ${S.view==='admin'?'adm-active':''}" onclick="setView('admin')"><span class="bn-icon">👑</span><span class="bn-label">Admin</span></button>`;
+    nav.classList.remove('hidden');return;
+  }
+  const items=[
+    {id:'calendar',icon:'📅',label:'Turnos'},
+    {id:'patients',icon:'👥',label:'Pacientes'},
+    {id:'history',icon:'📋',label:'Historial'},
+    {id:'odonto',icon:'🦷',label:'Odonto.'},
+    {id:'deudores',icon:'💰',label:'Deudas'},
+  ];
+  nav.innerHTML=items.map(it=>`<button class="bn-item${S.view===it.id?' active':''}" onclick="setView('${it.id}')">
+    <span class="bn-icon">${it.icon}</span>
+    <span class="bn-label">${it.label}</span>
+    ${it.id==='deudores'&&hasDebt()?'<span class="bn-dot"></span>':''}
+  </button>`).join('');
+  nav.classList.remove('hidden');
+}
+
+function hasDebt(){
+  return S.appointments.some(a=>a.payment_status!=='pagado'&&(a.amount??0)>0&&((a.amount??0)-(a.paid_amount??0))>0);
+}
+
+// ── FAB ────────────────────────────────────────────
+function renderFab(){
+  const fab=document.getElementById('fab');
+  const show=['calendar','patients'].includes(S.view)&&(!!getDentistId()||(USER.isAdmin&&USER.viewAs));
+  fab.classList.toggle('hidden',!show);
+  fab.onclick=()=>{
+    if(S.view==='calendar')openApptModal(null,S.selectedDay,'');
+    if(S.view==='patients')openPatientModal();
+  };
+}
+
+// ── Topbar helpers ─────────────────────────────────
+function setTopbar(left,right=''){
+  document.getElementById('topbar-left').innerHTML=left;
+  document.getElementById('topbar-right').innerHTML=right;
+}
+
+// ── Calendar ───────────────────────────────────────
+function renderCalendar(){
+  if(isMobile()) renderCalendarMobile();
+  else renderCalendarTablet();
+}
+
+function renderCalendarMobile(){
+  const days=getWeekDays(S.weekOffset);
+  const todayStr=today();
+  const month=`${MESES[days[0].getMonth()]} ${days[0].getFullYear()}`;
+  setTopbar(
+    `<div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-ghost btn-nav" onclick="changeWeek(-1)">←</button>
+      <span class="topbar-title">${month}</span>
+      <button class="btn btn-ghost btn-nav" onclick="changeWeek(1)">→</button>
+    </div>`,
+    `<button class="btn btn-sm" onclick="goToday()">Hoy</button>`
+  );
+
+  // Day strip
+  const apptDates=new Set(S.appointments.map(a=>a.date));
+  const dayStrip=days.map((d,i)=>{
+    const ds=fmtDate(d);
+    const isActive=ds===S.selectedDay;
+    const isToday=ds===todayStr;
+    const hasAppt=apptDates.has(ds);
+    return`<button class="day-pill${isActive?' active':''}${isToday?' is-today':''}" onclick="selectDay('${ds}')">
+      <span class="dp-name">${DAYS[i]}</span>
+      <span class="dp-num">${d.getDate()}</span>
+      <span class="dp-dot${hasAppt?' has-appt':''}"></span>
+    </button>`;
+  }).join('');
+
+  // Appointments for selected day
+  const dayAppts=S.appointments.map(norm)
+    .filter(a=>a.date===S.selectedDay)
+    .sort((a,b)=>a.time.localeCompare(b.time));
+
+  let apptHtml='';
+  if(dayAppts.length===0){
+    apptHtml=`<div class="empty-day">
+      <div class="empty-day-icon">📭</div>
+      <div class="empty-day-text">Sin turnos para este día</div>
+      <div class="empty-day-sub">Tocá + para agregar uno</div>
+    </div>`;
+  }else{
+    apptHtml=`<div class="appt-day-list">${dayAppts.map(a=>{
+      const t=findTT(a.type),pat=S.patients.find(p=>p.id===a.patientId);
+      const st=findST(a.status),ps=a.payment_status??'no_pagado';
+      const endT=endTimeStr(a.time,a.duration);
+      const wLink=whatsappLink(pat,a);
+      return`<div class="appt-day-card" onclick="openApptModal('${a.id}')">
+        <div class="appt-time-col">
+          <span class="appt-time">${a.time}</span>
+          <span class="appt-time-end">${endT}</span>
+        </div>
+        <div class="appt-type-bar" style="background:${t?.color??'#CBD5E1'}"></div>
+        <div class="appt-info">
+          <div class="appt-patient">${esc(pat?.name??'Paciente')}</div>
+          <div class="appt-detail">${esc(t?.label??'')} · ${a.duration} min</div>
+          <div class="appt-tags">
+            ${st?`<span class="badge" style="background:${st.bg};color:${st.color}">${st.label}</span>`:''}
+            <span class="pay-badge pay-${ps}">${{pagado:'✅ Pagado',parcial:'⚠️ Parcial',no_pagado:'❌ Sin pagar'}[ps]}</span>
+            ${(a.amount??0)>0?`<span style="font-size:12px;color:var(--text2);font-weight:600">${money(a.amount)}</span>`:''}
+          </div>
+          ${wLink?`<div style="margin-top:8px" onclick="event.stopPropagation()">${whatsappBtn(pat,a)}</div>`:''}
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  document.getElementById('content').innerHTML=`
+    <div class="day-strip">${dayStrip}</div>
+    ${apptHtml}`;
+}
+
+function renderCalendarTablet(){
+  const days=getWeekDays(S.weekOffset);
+  setTopbar(
+    `<div style="display:flex;align-items:center;gap:8px">
+      <button class="btn btn-nav" onclick="changeWeek(-1)">←</button>
+      <button class="btn btn-sm" onclick="goToday()">Hoy</button>
+      <button class="btn btn-nav" onclick="changeWeek(1)">→</button>
+      <span style="font-size:15px;font-weight:700;margin-left:4px">${weekLabel(days)}</span>
+    </div>`,
+    `<button class="btn btn-primary" onclick="openApptModal()">+ Nuevo turno</button>`
+  );
+  const startMap={},contMap={};
+  S.appointments.forEach(a=>{
+    const _a=norm(a);
+    const[hS,mS]=_a.time.split(':');
+    const sH=parseInt(hS),sM=parseInt(mS||0),eM=sH*60+sM+parseInt(_a.duration);
+    const sk=`${_a.date}_${sH}`;if(!startMap[sk])startMap[sk]=[];startMap[sk].push(_a);
+    for(let h=sH+1;h*60<eM;h++){const ck=`${_a.date}_${h}`;if(!contMap[ck])contMap[ck]=[];contMap[ck].push(_a);}
+  });
+  let head=`<div></div>`;
+  days.forEach((d,i)=>{
+    const isT=fmtDate(d)===today();
+    head+=`<div class="cwh"><div class="cwh-name">${DAYS[i]}</div><div class="cwh-num${isT?' today':''}">${d.getDate()}</div><div class="cwh-mon">${MESES_C[d.getMonth()]}</div></div>`;
+  });
+  let rows='';
+  HOURS.forEach(h=>{
+    let row=`<div class="cwt">${String(h).padStart(2,'0')}:00</div>`;
+    days.forEach(d=>{
+      const ds=fmtDate(d),ts=`${String(h).padStart(2,'0')}:00`;
+      const appts=startMap[`${ds}_${h}`]??[],conts=contMap[`${ds}_${h}`]??[];
+      const isBusy=appts.length>0||conts.length>0;
+      const cards=appts.map(a=>{
+        const t=findTT(a.type),pat=S.patients.find(p=>p.id===a.patientId);
+        return`<div class="cw-card" style="background:${t?.bg??'#F3F4F6'};border-left:3px solid ${t?.color??'#9CA3AF'}" onclick="event.stopPropagation();openApptModal('${a.id}')">
+          <div class="ct" style="color:${t?.color}">${esc(a.time)} · ${esc(pat?.name?.split(' ')[0]??'—')}</div>
+          <div class="cs">${esc(t?.label)} · ${a.duration}m</div></div>`;
+      }).join('');
+      const contCards=conts.map(a=>{
+        const t=findTT(a.type),pat=S.patients.find(p=>p.id===a.patientId);
+        return`<div class="cw-cont" style="background:${t?.bg??'#F3F4F6'};border-left:3px solid ${t?.color??'#9CA3AF'}" onclick="event.stopPropagation();openApptModal('${a.id}')">
+          <div class="ct" style="color:${t?.color};opacity:.7">↕ ${esc(pat?.name?.split(' ')[0]??'—')}</div>
+          <div class="cs">hasta ${endTimeStr(a.time,a.duration)}</div></div>`;
+      }).join('');
+      row+=`<div class="cwslot${isBusy?' busy':''}" onclick="${isBusy?'':'openApptModal(null,\''+ds+'\',\''+ts+'\')'}">
+        ${cards}${contCards}${!isBusy?`<div class="cw-hint">+ Turno</div>`:''}
+      </div>`;
+    });
+    rows+=`<div class="cal-week-row">${row}</div>`;
+  });
+  document.getElementById('content').innerHTML=`<div class="cal-week-wrap"><div class="cal-week-scroll"><div class="cal-week-inner"><div class="cal-week-head">${head}</div>${rows}</div></div></div>`;
+}
+
+function selectDay(ds){S.selectedDay=ds;renderCalendar();}
+function changeWeek(dir){
+  S.weekOffset=dir===0?0:S.weekOffset+dir;
+  const days=getWeekDays(S.weekOffset);
+  // Keep selectedDay in the new week's range if possible
+  const ds=days.map(d=>fmtDate(d));
+  if(!ds.includes(S.selectedDay))S.selectedDay=ds[0];
+  renderCalendar();
+}
+function goToday(){S.weekOffset=0;S.selectedDay=today();renderCalendar();}
+
+// ── Patients ───────────────────────────────────────
+function renderPatients(){
+  setTopbar(`<span class="topbar-title">Pacientes</span>`,
+    `<button class="btn btn-primary btn-sm" onclick="openPatientModal()">+ Nuevo</button>`);
+  const q=S.search.toLowerCase();
+  const filtered=S.patients.filter(p=>p.name.toLowerCase().includes(q)||p.dni?.includes(q)||p.phone?.includes(q));
+  const cnt={};S.appointments.forEach(a=>{const id=norm(a).patientId;cnt[id]=(cnt[id]??0)+1;});
+  const debt={};
+  S.appointments.forEach(a=>{
+    const _a=norm(a);
+    if(_a.payment_status!=='pagado'&&(_a.amount??0)>0){
+      const owed=(_a.amount??0)-(_a.paid_amount??0);
+      if(owed>0)debt[_a.patientId]=(debt[_a.patientId]??0)+owed;
+    }
+  });
+  const cards=filtered.length===0
+    ?`<div class="empty-state"><div class="ei">👥</div><div class="et">${S.search?'Sin resultados':'Sin pacientes aún'}</div><div class="es">${S.search?'Probá con otro término':'Agregá el primer paciente con el botón +'}</div></div>`
+    :filtered.map(p=>{
+        const last=S.appointments.map(norm).filter(a=>a.patientId===p.id).sort((a,b)=>b.date.localeCompare(a.date))[0];
+        const c=cnt[p.id]??0,d=debt[p.id]??0;
+        return`<div class="patient-card" onclick="openPatientModal('${p.id}')">
+          <div class="p-av">${esc(initials(p.name))}</div>
+          <div class="p-info">
+            <div class="p-name">${esc(p.name)}</div>
+            ${p.phone?`<div class="p-details"><span>📞 ${esc(p.phone)}</span>${p.dni?`<span>🪪 ${esc(p.dni)}</span>`:''}</div>`:''}
+            ${p.notes?`<div class="p-notes">${esc(p.notes)}</div>`:''}
+            <div class="p-meta">
+              ${d>0?`<span class="pay-badge pay-no_pagado">Debe ${money(d)}</span>`:''}
+              ${last?`<span style="font-size:12px;color:var(--text3)">Último: ${last.date}</span>`:''}
+            </div>
+          </div>
+          <div class="p-right">
+            <div class="p-count-num">${c}</div>
+            <div class="p-count-lbl">turno${c!==1?'s':''}</div>
+            <button class="btn btn-xs" style="margin-top:8px" onclick="event.stopPropagation();openPatientHistory('${p.id}')">📋</button>
+          </div>
+        </div>`;
+      }).join('');
+  document.getElementById('content').innerHTML=`
+    <div class="search-bar"><span class="search-icon">🔍</span><input class="search-input" type="search" placeholder="Buscar por nombre, DNI o teléfono…" value="${esc(S.search)}" oninput="S.search=this.value;renderPatients()" /></div>
+    ${cards}`;
+}
+
+// ── History ────────────────────────────────────────
+function renderHistory(){
+  setTopbar(`<span class="topbar-title">Historial</span>`);
+  const q=S.search.toLowerCase();
+  const months=[...new Set(S.appointments.map(a=>a.date.slice(0,7)))].sort().reverse();
+  const filtered=[...S.appointments].map(norm)
+    .filter(a=>{
+      const p=S.patients.find(x=>x.id===a.patientId);
+      return(!q||p?.name.toLowerCase().includes(q))&&(!S.filterType||a.type===S.filterType)&&(!S.filterStatus||a.status===S.filterStatus)&&(!S.filterMonth||a.date.startsWith(S.filterMonth));
+    }).sort((a,b)=>`${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
+  const counts={};filtered.forEach(a=>{counts[a.status]=(counts[a.status]??0)+1;});
+  const statStrip=`<div class="stat-strip">
+    <div class="stat-pill"><span class="num">${filtered.length}</span><span class="lbl">Total</span></div>
+    ${ST.filter(s=>counts[s.id]).map(s=>`<div class="stat-pill" style="background:${s.bg}"><span class="num" style="color:${s.color}">${counts[s.id]}</span><span class="lbl" style="color:${s.color}">${s.label}</span></div>`).join('')}
+  </div>`;
+  const moOpts=months.map(m=>{const[y,mo]=m.split('-');return`<option value="${m}"${S.filterMonth===m?' selected':''}>${MESES_C[+mo-1]} ${y}</option>`;}).join('');
+  const tyOpts=TT.map(t=>`<option value="${t.id}"${S.filterType===t.id?' selected':''}>${t.label}</option>`).join('');
+  const stOpts=ST.map(s=>`<option value="${s.id}"${S.filterStatus===s.id?' selected':''}>${s.label}</option>`).join('');
+  const cards=filtered.length===0
+    ?`<div class="empty-state"><div class="ei">📋</div><div class="et">Sin turnos</div></div>`
+    :filtered.map(a=>{
+        const p=S.patients.find(x=>x.id===a.patientId),t=findTT(a.type),s=findST(a.status);
+        const ps=a.payment_status??'no_pagado';
+        return`<div class="h-card">
+          <div class="h-bar" style="background:${t?.color??'#CBD5E1'}"></div>
+          <div class="h-body">
+            <div class="h-top">
+              <div class="h-name">${esc(p?.name??'(eliminado)')}</div>
+              <div class="badges">${t?`<span class="badge" style="background:${t.bg};color:${t.color}">${t.label}</span>`:''}${s?`<span class="badge" style="background:${s.bg};color:${s.color}">${s.label}</span>`:''}</div>
+            </div>
+            <div class="h-meta"><span>📅 ${a.date}</span><span>🕐 ${a.time} · ${a.duration}m</span>${(a.amount??0)>0?`<span style="font-weight:600">${money(a.amount)}</span>`:''}</div>
+            <div style="margin-top:6px"><span class="pay-badge pay-${ps}">${{pagado:'✅ Pagado',parcial:'⚠️ Parcial',no_pagado:'❌ Sin pagar'}[ps]}</span></div>
+          </div>
+        </div>`;
+      }).join('');
+  document.getElementById('content').innerHTML=`
+    <div class="search-bar"><span class="search-icon">🔍</span><input class="search-input" type="search" placeholder="Buscar paciente…" value="${esc(S.search)}" oninput="S.search=this.value;renderHistory()" /></div>
+    <div class="filter-chips">
+      <button class="filter-chip${!S.filterType?' active':''}" onclick="S.filterType='';renderHistory()">Todos</button>
+      ${TT.map(t=>`<button class="filter-chip${S.filterType===t.id?' active':''}" onclick="S.filterType='${t.id}';renderHistory()">${t.label}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <select class="select" style="flex:1;min-width:120px" onchange="S.filterStatus=this.value;renderHistory()"><option value="">Todos los estados</option>${stOpts}</select>
+      <select class="select" style="flex:1;min-width:120px" onchange="S.filterMonth=this.value;renderHistory()"><option value="">Todos los meses</option>${moOpts}</select>
+    </div>
+    ${statStrip}${cards}`;
+}
+
+// ── Deudores ───────────────────────────────────────
+function renderDeudores(){
+  setTopbar(`<span class="topbar-title">💰 Deudores</span>`);
+  const debtMap={};
+  S.appointments.map(norm).forEach(a=>{
+    if(a.payment_status==='pagado')return;
+    const owed=(a.amount??0)-(a.paid_amount??0);if(owed<=0)return;
+    if(!debtMap[a.patientId])debtMap[a.patientId]={total:0,appts:[],oldest:a.date};
+    debtMap[a.patientId].total+=owed;debtMap[a.patientId].appts.push(a);
+    if(a.date<debtMap[a.patientId].oldest)debtMap[a.patientId].oldest=a.date;
+  });
+  const debtors=Object.entries(debtMap).map(([pid,d])=>({patient:S.patients.find(p=>p.id===pid),...d})).filter(d=>d.patient).sort((a,b)=>b.total-a.total);
+  const totalDeuda=debtors.reduce((s,d)=>s+d.total,0);
+  const summary=`<div class="summary-row">
+    <div class="summary-card red"><div class="sc-num">${money(totalDeuda)}</div><div class="sc-lbl">Total adeudado</div></div>
+    <div class="summary-card"><div class="sc-num">${debtors.length}</div><div class="sc-lbl">Pacientes con deuda</div></div>
+  </div>`;
+  if(debtors.length===0){
+    document.getElementById('content').innerHTML=`${summary}<div class="empty-state"><div class="ei">🎉</div><div class="et">¡Sin deudas pendientes!</div></div>`;return;
+  }
+  const cards=debtors.map(d=>{
+    const rows=d.appts.sort((a,b)=>a.date.localeCompare(b.date)).map(a=>{
+      const t=findTT(a.type),owed=(a.amount??0)-(a.paid_amount??0),ps=a.payment_status??'no_pagado';
+      return`<div class="debt-appt-row">
+        <div class="dar-left">
+          <div class="dar-date">📅 ${a.date} · 🕐 ${a.time}</div>
+          <div class="dar-type">${t?`<span style="color:${t.color}">${t.label}</span>`:''} <span class="pay-badge pay-${ps}" style="font-size:10px">${{parcial:'⚠️ Parcial',no_pagado:'❌ Sin pagar'}[ps]??''}</span></div>
+        </div>
+        <div class="dar-right"><div class="dar-owed">${money(owed)}</div>${a.paid_amount>0?`<div style="font-size:11px;color:var(--text3)">Pagó ${money(a.paid_amount)}</div>`:''}</div>
+      </div>`;
+    }).join('');
+    return`<div class="debt-card">
+      <div class="debt-card-top">
+        <div class="p-av">${esc(initials(d.patient.name))}</div>
+        <div class="debt-info">
+          <div class="debt-name">${esc(d.patient.name)}</div>
+          ${d.patient.phone?`<div class="debt-phone">📞 ${esc(d.patient.phone)}</div>`:''}
+          <div class="debt-since">Desde ${d.oldest}</div>
+        </div>
+        <div class="debt-amount-col">
+          <div class="debt-total">${money(d.total)}</div>
+          <div class="debt-sub">adeuda</div>
+          <button class="btn btn-xs" style="margin-top:8px" onclick="openPatientHistory('${d.patient.id}')">Ver</button>
+        </div>
+      </div>
+      <div class="debt-appts">${rows}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('content').innerHTML=`${summary}${cards}`;
+}
+
+// ── Admin ──────────────────────────────────────────
+async function renderAdmin(){
+  setTopbar(`<span class="topbar-title">Odontólogos</span>`,`<button class="btn btn-purple btn-sm" onclick="openDentistModal()">+ Agregar</button>`);
+  showLoading();await loadDentists();
+  const cntMap={};
+  if(S.dentists.length>0){const{data:pts}=await db.from('patients').select('id,dentist_id');(pts??[]).forEach(p=>{cntMap[p.dentist_id]=(cntMap[p.dentist_id]??0)+1;});}
+  const cards=S.dentists.length===0
+    ?`<div class="empty-state"><div class="ei">👥</div><div class="et">Sin odontólogos registrados</div></div>`
+    :S.dentists.map(d=>{
+        const dJson=esc(JSON.stringify(d));
+        return`<div class="dentist-card">
+          <div class="dc-top"><div class="dc-av">${esc(initials(d.name))}</div><div><div class="dc-name">${esc(d.name)}</div><div class="dc-email">${esc(d.email)}</div></div></div>
+          <div class="dc-stat"><div><div class="num">${cntMap[d.id]??0}</div><div class="lbl">pacientes</div></div></div>
+          <div class="dc-actions">
+            <button class="btn btn-primary" style="flex:1" onclick='viewAsDentist(${dJson})'>👁 Ver interfaz</button>
+            <button class="btn" onclick="openDentistModal('${d.id}')">✏️</button>
+          </div>
+        </div>`;
+      }).join('');
+  document.getElementById('content').innerHTML=`<div class="admin-grid">${cards}</div>`;
+}
+
+function openDentistModal(id=null){
+  const isEdit=!!id,d=isEdit?S.dentists.find(x=>x.id===id):{name:'',email:'',password:''};
+  const body=`
+    <div class="field"><label class="field-label">Nombre completo *</label><input class="input" id="f-name" value="${esc(d.name)}" placeholder="Dra. María González" /></div>
+    <div class="field"><label class="field-label">Email *</label><input class="input" type="email" id="f-email" value="${esc(d.email)}" placeholder="dra@email.com" inputmode="email"/></div>
+    <div class="field"><label class="field-label">${isEdit?'Nueva contraseña (vacío = no cambiar)':'Contraseña *'}</label><input class="input" type="password" id="f-pass" placeholder="••••••••" /></div>`;
+  const left=isEdit?`<button class="btn btn-danger" onclick="deleteDentist('${id}')">Eliminar</button>`:'';
+  const foot=`<div>${left}</div><div class="modal-foot-r"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-purple" onclick="saveDentist(${isEdit?`'${id}'`:'null'})">${isEdit?'Guardar':'Crear'}</button></div>`;
+  openModal(isEdit?'Editar odontólogo':'Nuevo odontólogo',body,foot);
+}
+async function saveDentist(id){
+  const name=document.getElementById('f-name').value.trim(),email=document.getElementById('f-email').value.trim().toLowerCase(),pass=document.getElementById('f-pass').value;
+  if(!name||!email){alert('Nombre y email son obligatorios.');return;}
+  if(!id&&!pass){alert('La contraseña es obligatoria.');return;}
+  const row={id:id??uid('d'),name,email};if(pass)row.password=pass;
+  disableModalBtns();const{error}=await db.from('profiles').upsert(row);
+  if(error){toast('Error al guardar.',true);enableModalBtns();return;}
+  toast(`Odontólogo ${id?'actualizado':'creado'} ✓`);closeModal();renderAdmin();
+}
+async function deleteDentist(id){
+  const d=S.dentists.find(x=>x.id===id);if(!confirm(`¿Eliminar a ${d?.name}?`))return;
+  disableModalBtns();const{error}=await db.from('profiles').delete().eq('id',id);
+  if(error){toast('Error.',true);enableModalBtns();return;}
+  toast('Odontólogo eliminado.');closeModal();renderAdmin();
+}
+
+// ── Odontogram ─────────────────────────────────────
+const OD={patientId:null,tool:'fractura',marks:[],bridgeFirst:0};
+function renderOdonto(){
+  setTopbar(`<span class="topbar-title">Odontograma</span>`);
+  const patOpts=S.patients.map(p=>`<option value="${p.id}"${OD.patientId===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
+  document.getElementById('content').innerHTML=`<div class="odonto-wrap">
+    <div class="odonto-patient-sel">
+      <label class="field-label" style="display:block;margin-bottom:8px">Paciente</label>
+      <select class="select" id="od-patient" onchange="odSelectPatient(this.value)">
+        <option value="">— Seleccioná un paciente —</option>${patOpts}
+      </select>
+    </div>
+    <div class="odonto-tools">
+      ${['fractura','restauracion','extraccion','puente','borrar'].map(t=>`<button class="odonto-tool ${t}${OD.tool===t?' active':''}" onclick="odSetTool('${t}')">${{fractura:'🔴 Fractura',restauracion:'🔵 Restauración',extraccion:'✕ Extracción',puente:'— Puente',borrar:'🧹 Borrar'}[t]}</button>`).join('')}
+    </div>
+    <div class="odonto-scroll"><div class="odonto-canvas-wrap">
+      <canvas id="od-c1" width="810" height="210" style="z-index:1"></canvas>
+      <canvas id="od-c2" width="810" height="210" style="z-index:2"></canvas>
+      <canvas id="od-c3" width="810" height="210" style="z-index:3"></canvas>
+      <canvas id="od-c4" width="810" height="210" style="z-index:4"></canvas>
+    </div></div>
+    <div class="odonto-legend" style="margin:12px 0">
+      <div class="ol-item"><div class="ol-dot" style="background:#DC2626"></div>Fractura</div>
+      <div class="ol-item"><div class="ol-dot" style="background:#185FA5"></div>Restauración</div>
+      <div class="ol-item"><div class="ol-dot" style="border:2px solid #374151;background:transparent"></div>Extracción</div>
+      <div class="ol-item"><div class="ol-dot" style="background:#7C3AED;height:3px;border-radius:0;margin-top:5px"></div>Puente</div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:4px;border-top:1px solid var(--border)">
+      <span id="od-saving" style="font-size:13px;color:var(--text3);align-self:center;display:none">Guardando…</span>
+      <button class="btn btn-primary" onclick="odSave()"${!OD.patientId?' disabled':''}>💾 Guardar odontograma</button>
+    </div>
+  </div>`;
+  odInitCanvas();if(OD.patientId)odRedraw();
+}
+const MED=40,SEP=10;
+const odCtx=n=>document.getElementById(`od-c${n}`)?.getContext('2d');
+function odInitCanvas(){
+  const ctx1=odCtx(1);if(!ctx1)return;ctx1.clearRect(0,0,810,210);
+  for(let x=0;x<16;x++){const ix=(x*MED)+(SEP*x)+SEP,iy=20;odDrawOutline(ctx1,ix,iy);ctx1.font='10pt Calibri';ctx1.textAlign='center';ctx1.fillStyle='#185FA5';ctx1.fillText(x+1,ix+MED/2,12);}
+  for(let x=0;x<16;x++){const ix=(x*MED)+(SEP*x)+SEP,iy=MED+100;odDrawOutline(ctx1,ix,iy);ctx1.font='10pt Calibri';ctx1.textAlign='center';ctx1.fillStyle='#185FA5';ctx1.fillText(x+17,ix+MED/2,iy-8);}
+  const c4=document.getElementById('od-c4');if(!c4)return;
+  c4.onclick=odHandleClick;c4.onmousemove=odHandleHover;c4.onmouseleave=()=>{const c=odCtx(3);if(c)c.clearRect(0,0,810,210);};
+}
+function odDrawOutline(ctx,ix,iy){
+  const m=MED,q=m/4,t=q*3;ctx.strokeStyle='#374151';
+  [[ix,iy,m+ix,iy,t+ix,q+iy,q+ix,q+iy],[t+ix,q+iy,m+ix,iy,m+ix,m+iy,t+ix,t+iy],[q+ix,t+iy,t+ix,t+iy,m+ix,m+iy,ix,m+iy],[ix,iy,q+ix,q+iy,q+ix,t+iy,ix,m+iy]].forEach(pts=>{
+    ctx.beginPath();ctx.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)ctx.lineTo(pts[i],pts[i+1]);ctx.closePath();ctx.stroke();
+  });
+}
+function odPos(n){let idx=n-1,iy=20;if(idx>=16){idx-=16;iy=MED+100;}return{ix:(idx*MED)+(SEP*idx)+SEP,iy};}
+function odWhichTooth(x,y){
+  for(const{iy,base}of[{iy:20,base:1},{iy:MED+100,base:17}]){if(y>=iy&&y<=iy+MED){for(let i=0;i<16;i++){const ix=(i*MED)+(SEP*i)+SEP;if(x>=ix&&x<=ix+MED)return{diente:base+i,ix,iy};}}}return null;
+}
+function odWhichSection(lx,ly){
+  const q=MED/4,t=q*3;
+  if(ly>0&&ly<q&&lx>ly&&ly<MED-lx)return 1;if(lx>t&&lx<MED&&ly<lx&&MED-lx<ly)return 2;
+  if(ly>t&&ly<MED&&lx<ly&&lx>MED-ly)return 3;if(lx>0&&lx<q&&ly>lx&&lx<MED-ly)return 4;
+  if(lx>q&&lx<t&&ly>q&&ly<t)return 5;return 0;
+}
+function odFillSection(ctx,ix,iy,sec,color,stroke='black'){
+  const m=MED,q=m/4,t=q*3;
+  const S5={1:[[ix,iy],[m+ix,iy],[t+ix,q+iy],[q+ix,q+iy]],2:[[t+ix,q+iy],[m+ix,iy],[m+ix,m+iy],[t+ix,t+iy]],3:[[q+ix,t+iy],[t+ix,t+iy],[m+ix,m+iy],[ix,m+iy]],4:[[ix,iy],[q+ix,q+iy],[q+ix,t+iy],[ix,m+iy]],5:[[q+ix,q+iy],[t+ix,q+iy],[t+ix,t+iy],[q+ix,t+iy]]};
+  const pts=S5[sec];if(!pts)return;
+  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=stroke;ctx.stroke();
+}
+function odDrawMark(ctx,mark){
+  const{ix,iy}=odPos(mark.diente);
+  if(mark.accion===1)odFillSection(ctx,ix,iy,mark.seccion,'#DC2626');
+  else if(mark.accion===2)odFillSection(ctx,ix,iy,mark.seccion,'#185FA5');
+  else if(mark.accion===3){ctx.strokeStyle='#374151';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ix,iy);ctx.lineTo(ix+MED,iy+MED);ctx.moveTo(ix+MED,iy);ctx.lineTo(ix,iy+MED);ctx.stroke();ctx.lineWidth=1;}
+  else if(mark.accion===4){const p2=odPos(mark.diente2);ctx.strokeStyle='#7C3AED';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(ix+MED/2,iy+MED+5);ctx.lineTo(p2.ix+MED/2,p2.iy+MED+5);ctx.stroke();ctx.lineWidth=1;}
+}
+function odRedraw(){const c=odCtx(2);if(!c)return;c.clearRect(0,0,810,210);OD.marks.forEach(m=>odDrawMark(c,m));}
+function odHandleHover(e){
+  const rect=document.getElementById('od-c4').getBoundingClientRect();
+  const x=e.clientX-rect.left,y=e.clientY-rect.top;
+  const c3=odCtx(3);if(!c3)return;c3.clearRect(0,0,810,210);
+  const hit=odWhichTooth(x,y);if(!hit)return;
+  const{ix,iy}=hit;const sec=odWhichSection(x-ix,y-iy);
+  c3.globalAlpha=0.35;
+  if(['extraccion','puente','borrar'].includes(OD.tool)){c3.fillStyle=OD.tool==='borrar'?'#9CA3AF':'#FBBF24';c3.fillRect(ix,iy,MED,MED);}
+  else if(sec)odFillSection(c3,ix,iy,sec,'#FBBF24','transparent');
+  c3.globalAlpha=1;
+}
+function odHandleClick(e){
+  if(!OD.patientId){toast('Seleccioná un paciente primero.',true);return;}
+  const rect=document.getElementById('od-c4').getBoundingClientRect();
+  const x=e.clientX-rect.left,y=e.clientY-rect.top;
+  const hit=odWhichTooth(x,y);if(!hit)return;
+  const{diente,ix,iy}=hit;
+  if(OD.tool==='fractura'||OD.tool==='restauracion'){
+    const sec=odWhichSection(x-ix,y-iy);if(!sec)return;
+    const accion=OD.tool==='fractura'?1:2;
+    OD.marks=OD.marks.filter(m=>!(m.diente===diente&&m.seccion===sec&&(m.accion===1||m.accion===2)));
+    OD.marks.push({diente,seccion:sec,accion,diente2:0});odRedraw();
+  }else if(OD.tool==='extraccion'){
+    OD.marks=OD.marks.filter(m=>!(m.diente===diente&&m.accion===3));
+    OD.marks.push({diente,seccion:0,accion:3,diente2:0});odRedraw();
+  }else if(OD.tool==='puente'){
+    if(!OD.bridgeFirst){OD.bridgeFirst=diente;const c4=odCtx(4);c4.clearRect(0,0,810,210);c4.globalAlpha=0.4;c4.fillStyle='#7C3AED';c4.fillRect(ix,iy,MED,MED);c4.globalAlpha=1;toast('Ahora tocá el segundo diente.');}
+    else{const d1=Math.min(OD.bridgeFirst,diente),d2=Math.max(OD.bridgeFirst,diente);if(d1!==d2)OD.marks.push({diente:d1,seccion:0,accion:4,diente2:d2});odRedraw();OD.bridgeFirst=0;odCtx(4).clearRect(0,0,810,210);}
+  }else if(OD.tool==='borrar'){OD.marks=OD.marks.filter(m=>m.diente!==diente&&m.diente2!==diente);odRedraw();}
+}
+function odSetTool(t){
+  OD.tool=t;OD.bridgeFirst=0;const c4=odCtx(4);if(c4)c4.clearRect(0,0,810,210);
+  document.querySelectorAll('.odonto-tool').forEach(b=>b.classList.toggle('active',b.classList.contains(t)));
+}
+async function odSelectPatient(id){
+  OD.patientId=id;OD.marks=[];OD.bridgeFirst=0;if(!id){odRedraw();return;}
+  const{data,error}=await db.from('odontograms').select('data').eq('patient_id',id).single();
+  if(!error&&data?.data)OD.marks=data.data;
+  odRedraw();document.querySelectorAll('#content button[onclick="odSave()"]').forEach(b=>b.disabled=false);
+}
+async function odSave(){
+  if(!OD.patientId)return;
+  const el=document.getElementById('od-saving');if(el)el.style.display='inline';
+  const{error}=await db.from('odontograms').upsert({patient_id:OD.patientId,data:OD.marks,updated_at:new Date().toISOString()});
+  if(el)el.style.display='none';
+  error?toast('Error al guardar.',true):toast('Odontograma guardado ✓');
+}
+
+// ── Patient History Modal ──────────────────────────
+function openPatientHistory(pid){
+  const p=S.patients.find(x=>x.id===pid);
+  const appts=S.appointments.map(norm).filter(a=>a.patientId===pid).sort((a,b)=>`${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
+  const totalCob=appts.reduce((s,a)=>s+(a.amount??0),0);
+  const totalPag=appts.reduce((s,a)=>s+(a.paid_amount??0),0);
+  const totalDeu=totalCob-totalPag;
+  const summary=totalCob>0?`<div class="hist-summary">
+    <div class="hs-card teal"><div class="num">${money(totalCob)}</div><div class="lbl">Cobrado</div></div>
+    <div class="hs-card green"><div class="num">${money(totalPag)}</div><div class="lbl">Pagado</div></div>
+    <div class="hs-card${totalDeu>0?' red':' teal'}"><div class="num">${money(totalDeu)}</div><div class="lbl">${totalDeu>0?'Debe':'Saldo'}</div></div>
+  </div>`:'';
+  const rows=appts.length===0?`<div class="empty-state" style="padding:24px"><div class="et">Sin turnos registrados</div></div>`
+    :appts.map(a=>{
+        const t=findTT(a.type),ps=a.payment_status??'no_pagado',owed=(a.amount??0)-(a.paid_amount??0);
+        return`<div class="hist-appt">
+          <div class="hist-appt-top">
+            <div class="hist-appt-info">
+              <div class="date">📅 ${a.date} · 🕐 ${a.time}</div>
+              <div class="type">${t?`<span style="color:${t.color}">${t.label}</span>`:''} · ${a.duration} min</div>
+              <div style="margin-top:5px"><span class="pay-badge pay-${ps}">${{pagado:'✅ Pagado',parcial:'⚠️ Parcial',no_pagado:'❌ Sin pagar'}[ps]}</span></div>
+            </div>
+            ${(a.amount??0)>0?`<div class="hist-appt-right">
+              <div class="hist-amount">${money(a.amount)}</div>
+              ${a.paid_amount>0?`<div style="font-size:12px;color:var(--green)">Pagó ${money(a.paid_amount)}</div>`:''}
+              ${owed>0?`<div class="hist-owed">Debe ${money(owed)}</div>`:''}
+            </div>`:''}
+          </div>
+          ${a.notes?`<div style="font-size:12px;color:var(--text3);font-style:italic;margin-top:6px">"${esc(a.notes)}"</div>`:''}
+        </div>`;
+      }).join('');
+  const foot=`<div></div><div class="modal-foot-r"><button class="btn" onclick="closeModal()">Cerrar</button><button class="btn btn-primary" onclick="closeModal();openPatientModal('${pid}')">✏️ Editar</button></div>`;
+  openModal(`Turnos · ${p?.name??''}`,`${summary}${rows}`,foot);
+}
+
+// ── WhatsApp ───────────────────────────────────────
+function formatDateFriendly(dateStr){
+  const[y,m,d]=dateStr.split('-').map(Number);
+  return`${d} de ${MESES[m-1]} de ${y}`;
+}
+function whatsappLink(patient,appt){
+  if(!patient?.phone)return null;
+  let phone=patient.phone.replace(/\D/g,'');
+  if(phone.startsWith('0'))phone=phone.slice(1);
+  if(!phone.startsWith('54'))phone='549'+phone;
+  else if(phone.startsWith('54')&&!phone.startsWith('549'))phone='549'+phone.slice(2);
+  const t=findTT(appt.type);
+  const fecha=formatDateFriendly(appt.date);
+  const nombre=patient.name.split(' ')[0];
+  const msg=`Hola ${nombre}! Te recordamos que tenes turno de *${t?.label??'odontologia'}* el *${fecha}* a las *${appt.time} hs*.\n\nCualquier consulta no dudes en escribirnos. Te esperamos! 😊`;
+  return`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+}
+function whatsappBtn(patient,appt,size='sm'){
+  const link=whatsappLink(patient,appt);
+  if(!link)return'';
+  return`<a href="${esc(link)}" target="_blank" rel="noopener" class="btn btn-${size}" style="background:#25D366;color:#fff;border-color:transparent;text-decoration:none;gap:5px;white-space:nowrap">📲 WhatsApp</a>`;
+}
+
+// ── Modal ──────────────────────────────────────────
+function openModal(title,body,foot){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=body;
+  document.getElementById('modal-foot').innerHTML=foot;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+function closeModal(){document.getElementById('overlay').classList.add('hidden');}
+function handleOverlayClick(e){if(e.target===document.getElementById('overlay'))closeModal();}
+function disableModalBtns(){document.querySelectorAll('#modal-foot button').forEach(b=>b.disabled=true);}
+function enableModalBtns(){document.querySelectorAll('#modal-foot button').forEach(b=>b.disabled=false);}
+
+// ── Inline patient creation (from appointment modal) ───
+function handlePatientSelect(val){
+  const panel=document.getElementById('new-patient-panel');
+  if(!panel)return;
+  if(val==='__new__'){
+    panel.style.display='flex';
+    setTimeout(()=>document.getElementById('np-name')?.focus(),50);
+  }else{
+    panel.style.display='none';
+  }
+}
+function cancelNewPatient(){
+  const panel=document.getElementById('new-patient-panel');
+  if(panel)panel.style.display='none';
+  const sel=document.getElementById('f-pid');
+  if(sel&&sel.options.length>1)sel.selectedIndex=0;
+}
+async function createPatientInline(){
+  const name=document.getElementById('np-name')?.value.trim();
+  const phone=document.getElementById('np-phone')?.value.trim()??'';
+  if(!name){toast('El nombre es obligatorio.',true);return;}
+  const btn=document.getElementById('np-btn');
+  if(btn){btn.disabled=true;btn.textContent='Creando…';}
+  const newP={id:uid('p'),name,phone,email:'',dni:'',birthdate:'',notes:'',dentist_id:getDentistId()};
+  const{error}=await db.from('patients').insert(newP);
+  if(error){
+    toast('Error al crear paciente.',true);
+    if(btn){btn.disabled=false;btn.textContent='Crear y seleccionar';}
+    return;
+  }
+  // Add to local state sorted
+  S.patients.push(newP);
+  S.patients.sort((a,b)=>a.name.localeCompare(b.name));
+  // Inject option into select (before __new__ option)
+  const sel=document.getElementById('f-pid');
+  if(sel){
+    const opt=document.createElement('option');
+    opt.value=newP.id;opt.textContent=newP.name;
+    const newOpt=sel.querySelector('option[value="__new__"]');
+    sel.insertBefore(opt,newOpt??null);
+    sel.value=newP.id;
+  }
+  const panel=document.getElementById('new-patient-panel');
+  if(panel)panel.style.display='none';
+  toast(`${name} creado ✓`);
+}
+
+// ── Appointment Modal ──────────────────────────────
+function openApptModal(id=null,defDate='',defTime=''){
+  const isEdit=!!id;
+  const a=isEdit?{...S.appointments.find(x=>x.id===id),...(()=>{const f=S.appointments.find(x=>x.id===id);return{patientId:f?.patient_id??f?.patientId};})()}:{patientId:S.patients[0]?.id??'',date:defDate||S.selectedDay||today(),time:defTime||'09:00',duration:60,type:'consulta',notes:'',status:'confirmado',amount:0,paid_amount:0,payment_status:'no_pagado'};
+  const nA={...a,patientId:a.patient_id??a.patientId};
+  const patOpts=S.patients.map(p=>`<option value="${p.id}"${nA.patientId===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
+  const durOpts=DURS.map(v=>`<option value="${v}"${nA.duration==v?' selected':''}>${v} min</option>`).join('');
+  const tyOpts=TT.map(t=>`<option value="${t.id}"${nA.type===t.id?' selected':''}>${t.label}</option>`).join('');
+  const stOpts=ST.map(s=>`<option value="${s.id}"${nA.status===s.id?' selected':''}>${s.label}</option>`).join('');
+  const body=`
+    <div class="field"><label class="field-label">Paciente *</label>
+      <select class="select" id="f-pid" onchange="handlePatientSelect(this.value)">
+        ${patOpts}
+        <option value="__new__" style="color:var(--teal);font-weight:600">➕ Crear nuevo paciente…</option>
+      </select>
+    </div>
+    <div id="new-patient-panel" style="display:none;background:var(--teal-l);border-radius:var(--r);border:1.5px solid var(--teal);padding:14px;flex-direction:column;gap:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--teal)">🆕 Nuevo paciente</div>
+      <div class="field"><label class="field-label">Nombre *</label><input class="input" id="np-name" placeholder="Nombre y apellido" autocomplete="name" /></div>
+      <div class="field"><label class="field-label">Teléfono (para WhatsApp)</label><input class="input" type="tel" id="np-phone" placeholder="351-xxx-xxxx" inputmode="tel" /></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" id="np-btn" onclick="createPatientInline()" style="flex:1">Crear y seleccionar</button>
+        <button class="btn" onclick="cancelNewPatient()">Cancelar</button>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label class="field-label">Fecha *</label><input class="input" type="date" id="f-date" value="${esc(nA.date)}" /></div>
+      <div class="field"><label class="field-label">Hora *</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select class="select" id="f-hour" style="flex:1">
+            ${Array.from({length:11},(_,i)=>i+8).map(h=>`<option value="${String(h).padStart(2,'0')}"${nA.time?.split(':')[0]===String(h).padStart(2,'0')?' selected':''}>${String(h).padStart(2,'0')}</option>`).join('')}
+          </select>
+          <span style="font-weight:700;color:var(--text2);font-size:16px">:</span>
+          <select class="select" id="f-min" style="flex:1">
+            ${['00','15','30','45'].map(m=>`<option value="${m}"${(()=>{const em=nA.time?.split(':')[1]??'00';return['00','15','30','45'].reduce((p,c)=>Math.abs(+c-+em)<Math.abs(+p-+em)?c:p)=== m})()?'selected':''}>${m}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label class="field-label">Duración</label><select class="select" id="f-dur">${durOpts}</select></div>
+      <div class="field"><label class="field-label">Tipo</label><select class="select" id="f-type">${tyOpts}</select></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label class="field-label">Estado</label><select class="select" id="f-status">${stOpts}</select></div>
+      <div class="field"><label class="field-label">Notas</label><input class="input" id="f-notes" value="${esc(nA.notes??'')}" placeholder="Observaciones…" /></div>
+    </div>
+    <div class="section-divider">💰 Pago</div>
+    <div class="grid-2">
+      <div class="field"><label class="field-label">Monto cobrado ($)</label><input class="input" type="number" id="f-amount" min="0" step="100" value="${nA.amount??0}" inputmode="numeric"/></div>
+      <div class="field"><label class="field-label">Monto pagado ($)</label><input class="input" type="number" id="f-paid" min="0" step="100" value="${nA.paid_amount??0}" inputmode="numeric"/></div>
+    </div>
+    <div class="field"><label class="field-label">Estado de pago</label>
+      <select class="select" id="f-pstatus">
+        <option value="no_pagado"${(nA.payment_status??'no_pagado')==='no_pagado'?' selected':''}>❌ No pagado</option>
+        <option value="parcial"${nA.payment_status==='parcial'?' selected':''}>⚠️ Pago parcial</option>
+        <option value="pagado"${nA.payment_status==='pagado'?' selected':''}>✅ Pagado</option>
+      </select>
+    </div>`;
+  const left=isEdit?`<div style="display:flex;gap:8px;flex-wrap:wrap">${(()=>{const pat=S.patients.find(p=>p.id===nA.patientId);return pat?whatsappBtn(pat,nA):'';})()}<button class="btn btn-danger" onclick="deleteAppt('${id}')">Eliminar</button></div>`:'';
+  const foot=`<div>${left}</div><div class="modal-foot-r"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="saveAppt(${isEdit?`'${id}'`:'null'})">${isEdit?'Guardar':'Crear turno'}</button></div>`;
+  openModal(isEdit?'Editar turno':'Nuevo turno',body,foot);
+}
+async function saveAppt(id){
+  const pid=document.getElementById('f-pid').value,date=document.getElementById('f-date').value;
+  const hour=document.getElementById('f-hour').value,min=document.getElementById('f-min').value;
+  const time=`${hour}:${min}`;
+  if(!pid||!date||!time){alert('Completá los campos obligatorios.');return;}
+  const row={id:id??uid('a'),patient_id:pid,date,time,duration:parseInt(document.getElementById('f-dur').value),type:document.getElementById('f-type').value,status:document.getElementById('f-status').value,notes:document.getElementById('f-notes').value.trim(),amount:parseFloat(document.getElementById('f-amount').value)||0,paid_amount:parseFloat(document.getElementById('f-paid').value)||0,payment_status:document.getElementById('f-pstatus').value};
+  disableModalBtns();const{error}=await db.from('appointments').upsert(row);
+  if(error){toast('Error al guardar.',true);enableModalBtns();return;}
+  toast('Turno guardado ✓');await loadData();closeModal();renderUI();
+}
+async function deleteAppt(id){
+  if(!confirm('¿Eliminar este turno?'))return;disableModalBtns();
+  const{error}=await db.from('appointments').delete().eq('id',id);
+  if(error){toast('Error.',true);enableModalBtns();return;}
+  toast('Turno eliminado.');await loadData();closeModal();renderUI();
+}
+
+// ── Patient Modal ──────────────────────────────────
+function openPatientModal(id=null){
+  const isEdit=!!id,p=isEdit?S.patients.find(x=>x.id===id):{name:'',phone:'',email:'',dni:'',birthdate:'',notes:''};
+  const body=`
+    <div class="field"><label class="field-label">Nombre completo *</label><input class="input" id="f-name" value="${esc(p.name)}" placeholder="Nombre y apellido" autocomplete="name"/></div>
+    <div class="grid-2">
+      <div class="field"><label class="field-label">Teléfono</label><input class="input" type="tel" id="f-phone" value="${esc(p.phone??'')}" placeholder="351-xxx-xxxx" inputmode="tel"/></div>
+      <div class="field"><label class="field-label">DNI</label><input class="input" id="f-dni" value="${esc(p.dni??'')}" placeholder="XX.XXX.XXX" inputmode="numeric"/></div>
+    </div>
+    <div class="field"><label class="field-label">Email</label><input class="input" type="email" id="f-email" value="${esc(p.email??'')}" placeholder="email@ejemplo.com" inputmode="email"/></div>
+    <div class="field"><label class="field-label">Fecha de nacimiento</label><input class="input" type="date" id="f-bdate" value="${esc(p.birthdate??'')}"/></div>
+    <div class="field"><label class="field-label">Notas / Historial clínico</label><textarea class="textarea" id="f-notes" placeholder="Alergias, medicamentos, observaciones…">${esc(p.notes??'')}</textarea></div>`;
+  const left=isEdit?`<button class="btn btn-danger" onclick="deletePatient('${id}')">Eliminar</button>`:'';
+  const foot=`<div>${left}</div><div class="modal-foot-r"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="savePatient(${isEdit?`'${id}'`:'null'})">${isEdit?'Guardar':'Agregar'}</button></div>`;
+  openModal(isEdit?'Editar paciente':'Nuevo paciente',body,foot);
+}
+async function savePatient(id){
+  const name=document.getElementById('f-name').value.trim();if(!name){alert('El nombre es obligatorio.');return;}
+  const row={id:id??uid('p'),name,phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),dni:document.getElementById('f-dni').value.trim(),birthdate:document.getElementById('f-bdate').value,notes:document.getElementById('f-notes').value.trim(),dentist_id:getDentistId()};
+  disableModalBtns();const{error}=await db.from('patients').upsert(row);
+  if(error){toast('Error al guardar.',true);enableModalBtns();return;}
+  toast('Paciente guardado ✓');await loadData();closeModal();renderUI();
+}
+async function deletePatient(id){
+  const p=S.patients.find(x=>x.id===id);if(!confirm(`¿Eliminar a ${p?.name}?`))return;
+  disableModalBtns();const{error}=await db.from('patients').delete().eq('id',id);
+  if(error){toast('Error.',true);enableModalBtns();return;}
+  toast('Paciente eliminado.');await loadData();closeModal();renderUI();
+}
+
+// ── Init ───────────────────────────────────────────
+(async()=>{
+  if(loadSession()){
+    document.getElementById('app').classList.remove('hidden');
+    S.view=USER.isAdmin&&!USER.viewAs?'admin':'calendar';
+    if(getDentistId())await loadData();
+    renderUI();
+  }else{
+    document.getElementById('login-screen').classList.remove('hidden');
+  }
+})();
+</script>
+</body>
+</html>
