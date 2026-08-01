@@ -548,15 +548,14 @@ const S={
 // ── Data ───────────────────────────────────────────
 async function loadData(){
   const did=getDentistId();if(!did){S.patients=[];S.appointments=[];return;}
-  const{data:pts,error:e1}=await db.from('patients').select('*').eq('dentist_id',did).order('name');
+  const[{data:pts,error:e1},{data:appts,error:e2}]=await Promise.all([
+    db.from('patients').select('*').eq('dentist_id',did).order('name'),
+    db.from('appointments').select('*').eq('dentist_id',did).order('date').order('time'),
+  ]);
   if(e1)toast('Error al cargar pacientes.',true);
+  if(e2)toast('Error al cargar turnos.',true);
   S.patients=pts??[];
-  if(S.patients.length>0){
-    const pids=S.patients.map(p=>p.id);
-    const{data:appts,error:e2}=await db.from('appointments').select('*').in('patient_id',pids).order('date').order('time');
-    if(e2)toast('Error al cargar turnos.',true);
-    S.appointments=appts??[];
-  }else S.appointments=[];
+  S.appointments=appts??[];
 }
 async function loadDentists(){
   const{data,error}=await db.from('profiles').select('*').order('name');
@@ -1431,6 +1430,7 @@ async function saveAppt(id){
 
   const row={
     id:id??uid('a'),patient_id,temp_name,date,time,
+    dentist_id:getDentistId(),
     duration:parseInt(document.getElementById('f-dur').value),
     type:document.getElementById('f-type').value,
     status:document.getElementById('f-status').value,
