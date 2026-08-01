@@ -305,6 +305,7 @@
     .odonto-canvas-wrap{position:relative;width:810px;height:210px;margin:0;overflow:hidden;}
     .odonto-canvas-wrap canvas{position:absolute;left:0;top:0;}
     .odonto-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px;border:1px solid var(--border);margin-bottom:14px;}
+    @media(max-width:767px){.odonto-scroll{overflow:hidden;}}
     .odonto-legend{display:flex;gap:14px;flex-wrap:wrap;}
     .ol-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);}
     .ol-dot{width:12px;height:12px;border-radius:2px;}
@@ -325,6 +326,15 @@
     .hist-appt-right{text-align:right;}
     .hist-amount{font-size:14px;font-weight:700;color:var(--text);}
     .hist-owed{font-size:12px;color:var(--red);margin-top:2px;}
+
+    /* ── Mode tabs ── */
+    .mode-tabs{display:flex;border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;margin-top:6px;}
+    .mode-tab{flex:1;padding:9px 4px;text-align:center;font-size:12px;font-weight:600;border:none;background:transparent;cursor:pointer;color:var(--text2);transition:background .15s,color .15s;line-height:1.3;}
+    .mode-tab.active{background:var(--teal);color:#fff;}
+    .mode-tab:not(.active):hover{background:#F8FAFC;}
+    .mode-panel{display:none;flex-direction:column;gap:12px;padding:12px;border-radius:var(--r);border:1.5px solid var(--border);background:#F8FAFC;margin-top:2px;}
+    .mode-panel.vis{display:flex;}
+    .mode-panel.teal{border-color:var(--teal);background:var(--teal-l);}
 
     /* ── Empty / Loading ── */
     .empty-state{text-align:center;padding:48px 20px;color:var(--text3);}
@@ -697,7 +707,8 @@ function renderCalendarMobile(){
       const t=findTT(a.type),pat=S.patients.find(p=>p.id===a.patientId);
       const st=findST(a.status),ps=a.payment_status??'no_pagado';
       const endT=endTimeStr(a.time,a.duration);
-      const wLink=whatsappLink(pat,a);
+      const displayName=apptName(a);
+      const wLink=pat?.phone?whatsappLink(pat,a):null;
       return`<div class="appt-day-card" onclick="openApptModal('${a.id}')">
         <div class="appt-time-col">
           <span class="appt-time">${a.time}</span>
@@ -705,7 +716,7 @@ function renderCalendarMobile(){
         </div>
         <div class="appt-type-bar" style="background:${t?.color??'#CBD5E1'}"></div>
         <div class="appt-info">
-          <div class="appt-patient">${esc(pat?.name??'Paciente')}</div>
+          <div class="appt-patient">${esc(displayName)}</div>
           <div class="appt-detail">${esc(t?.label??'')} · ${a.duration} min</div>
           <div class="appt-tags">
             ${st?`<span class="badge" style="background:${st.bg};color:${st.color}">${st.label}</span>`:''}
@@ -755,15 +766,15 @@ function renderCalendarTablet(){
       const appts=startMap[`${ds}_${h}`]??[],conts=contMap[`${ds}_${h}`]??[];
       const isBusy=appts.length>0||conts.length>0;
       const cards=appts.map(a=>{
-        const t=findTT(a.type),pat=S.patients.find(p=>p.id===a.patientId);
+        const t=findTT(a.type);const dn=apptName(a);
         return`<div class="cw-card" style="background:${t?.bg??'#F3F4F6'};border-left:3px solid ${t?.color??'#9CA3AF'}" onclick="event.stopPropagation();openApptModal('${a.id}')">
-          <div class="ct" style="color:${t?.color}">${esc(a.time)} · ${esc(pat?.name?.split(' ')[0]??'—')}</div>
+          <div class="ct" style="color:${t?.color}">${esc(a.time)} · ${esc(dn.split(' ')[0])}</div>
           <div class="cs">${esc(t?.label)} · ${a.duration}m</div></div>`;
       }).join('');
       const contCards=conts.map(a=>{
-        const t=findTT(a.type),pat=S.patients.find(p=>p.id===a.patientId);
+        const t=findTT(a.type);const dn=apptName(a);
         return`<div class="cw-cont" style="background:${t?.bg??'#F3F4F6'};border-left:3px solid ${t?.color??'#9CA3AF'}" onclick="event.stopPropagation();openApptModal('${a.id}')">
-          <div class="ct" style="color:${t?.color};opacity:.7">↕ ${esc(pat?.name?.split(' ')[0]??'—')}</div>
+          <div class="ct" style="color:${t?.color};opacity:.7">↕ ${esc(dn.split(' ')[0])}</div>
           <div class="cs">hasta ${endTimeStr(a.time,a.duration)}</div></div>`;
       }).join('');
       row+=`<div class="cwslot${isBusy?' busy':''}" onclick="${isBusy?'':'openApptModal(null,\''+ds+'\',\''+ts+'\')'}">
@@ -852,11 +863,12 @@ function renderHistory(){
     :filtered.map(a=>{
         const p=S.patients.find(x=>x.id===a.patientId),t=findTT(a.type),s=findST(a.status);
         const ps=a.payment_status??'no_pagado';
+        const dn=apptName(a);
         return`<div class="h-card">
           <div class="h-bar" style="background:${t?.color??'#CBD5E1'}"></div>
           <div class="h-body">
             <div class="h-top">
-              <div class="h-name">${esc(p?.name??'(eliminado)')}</div>
+              <div class="h-name">${esc(dn)}</div>
               <div class="badges">${t?`<span class="badge" style="background:${t.bg};color:${t.color}">${t.label}</span>`:''}${s?`<span class="badge" style="background:${s.bg};color:${s.color}">${s.label}</span>`:''}</div>
             </div>
             <div class="h-meta"><span>📅 ${a.date}</span><span>🕐 ${a.time} · ${a.duration}m</span>${(a.amount??0)>0?`<span style="font-weight:600">${money(a.amount)}</span>`:''}</div>
@@ -1012,12 +1024,33 @@ function renderOdonto(){
 }
 const MED=40,SEP=10;
 const odCtx=n=>document.getElementById(`od-c${n}`)?.getContext('2d');
+
+function getOdScale(){
+  if(!isMobile())return 1;
+  const avail=window.innerWidth-40; // 20px padding each side
+  return Math.min(1, avail/810);
+}
+
+function odApplyScale(){
+  const wrap=document.querySelector('.odonto-canvas-wrap');
+  if(!wrap)return;
+  const sc=getOdScale();
+  wrap.style.transformOrigin='top left';
+  wrap.style.transform=sc<1?`scale(${sc})`:'none';
+  const scroll=document.querySelector('.odonto-scroll');
+  if(scroll){
+    scroll.style.height=sc<1?Math.ceil(210*sc+4)+'px':'auto';
+    scroll.style.width=sc<1?Math.ceil(810*sc)+'px':'auto';
+  }
+}
+
 function odInitCanvas(){
   const ctx1=odCtx(1);if(!ctx1)return;ctx1.clearRect(0,0,810,210);
   for(let x=0;x<16;x++){const ix=(x*MED)+(SEP*x)+SEP,iy=20;odDrawOutline(ctx1,ix,iy);ctx1.font='10pt Calibri';ctx1.textAlign='center';ctx1.fillStyle='#185FA5';ctx1.fillText(x+1,ix+MED/2,12);}
   for(let x=0;x<16;x++){const ix=(x*MED)+(SEP*x)+SEP,iy=MED+100;odDrawOutline(ctx1,ix,iy);ctx1.font='10pt Calibri';ctx1.textAlign='center';ctx1.fillStyle='#185FA5';ctx1.fillText(x+17,ix+MED/2,iy-8);}
   const c4=document.getElementById('od-c4');if(!c4)return;
   c4.onclick=odHandleClick;c4.onmousemove=odHandleHover;c4.onmouseleave=()=>{const c=odCtx(3);if(c)c.clearRect(0,0,810,210);};
+  odApplyScale();
 }
 function odDrawOutline(ctx,ix,iy){
   const m=MED,q=m/4,t=q*3;ctx.strokeStyle='#374151';
@@ -1051,7 +1084,8 @@ function odDrawMark(ctx,mark){
 function odRedraw(){const c=odCtx(2);if(!c)return;c.clearRect(0,0,810,210);OD.marks.forEach(m=>odDrawMark(c,m));}
 function odHandleHover(e){
   const rect=document.getElementById('od-c4').getBoundingClientRect();
-  const x=e.clientX-rect.left,y=e.clientY-rect.top;
+  const sc=getOdScale();
+  const x=(e.clientX-rect.left)/sc,y=(e.clientY-rect.top)/sc;
   const c3=odCtx(3);if(!c3)return;c3.clearRect(0,0,810,210);
   const hit=odWhichTooth(x,y);if(!hit)return;
   const{ix,iy}=hit;const sec=odWhichSection(x-ix,y-iy);
@@ -1063,7 +1097,8 @@ function odHandleHover(e){
 function odHandleClick(e){
   if(!OD.patientId){toast('Seleccioná un paciente primero.',true);return;}
   const rect=document.getElementById('od-c4').getBoundingClientRect();
-  const x=e.clientX-rect.left,y=e.clientY-rect.top;
+  const sc=getOdScale();
+  const x=(e.clientX-rect.left)/sc,y=(e.clientY-rect.top)/sc;
   const hit=odWhichTooth(x,y);if(!hit)return;
   const{diente,ix,iy}=hit;
   if(OD.tool==='fractura'||OD.tool==='restauracion'){
@@ -1146,7 +1181,7 @@ function whatsappLink(patient,appt){
   const t=findTT(appt.type);
   const fecha=formatDateFriendly(appt.date);
   const nombre=patient.name.split(' ')[0];
-  const msg=`Hola ${nombre}! Te recordamos que tenes turno de *${t?.label??'odontologia'}* el *${fecha}* a las *${appt.time} hs*.\n\nCualquier consulta no dudes en escribirnos. Te esperamos! 😊`;
+  const msg=`Hola ${nombre}! Te recordamos que tenes turno de *${t?.label??'odontologia'}* el *${fecha}* a las *${appt.time} hs*.\n\nCualquier consulta no dudes en escribirnos. Te esperamos!`;
   return`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
 }
 function whatsappBtn(patient,appt,size='sm'){
@@ -1166,6 +1201,40 @@ function closeModal(){document.getElementById('overlay').classList.add('hidden')
 function handleOverlayClick(e){if(e.target===document.getElementById('overlay'))closeModal();}
 function disableModalBtns(){document.querySelectorAll('#modal-foot button').forEach(b=>b.disabled=true);}
 function enableModalBtns(){document.querySelectorAll('#modal-foot button').forEach(b=>b.disabled=false);}
+
+// ── Patient name helper (handles temp_name appointments) ──
+function apptName(appt){
+  const _a=norm(appt);
+  const p=S.patients.find(x=>x.id===_a.patientId);
+  return p?.name??appt.temp_name??'(provisional)';
+}
+function apptFirstName(appt){return apptName(appt).split(' ')[0];}
+
+// ── Appointment mode (patient section) ────────────────────
+function setApptMode(mode){
+  ['temp','existing','new'].forEach(m=>{
+    document.querySelector(`.mode-tab[data-mode="${m}"]`)?.classList.toggle('active',m===mode);
+    const panel=document.getElementById(`mode-panel-${m}`);
+    if(panel){panel.classList.toggle('vis',m===mode);}
+  });
+}
+
+async function saveNewPatientAndAppt(apptId){
+  const name=document.getElementById('np-name')?.value.trim();
+  if(!name){toast('El nombre del paciente es obligatorio.',true);return;}
+  const newP={id:uid('p'),name,
+    phone:document.getElementById('np-phone')?.value.trim()??'',
+    dni:document.getElementById('np-dni')?.value.trim()??'',
+    email:document.getElementById('np-email')?.value.trim()??'',
+    birthdate:document.getElementById('np-bdate')?.value??'',
+    notes:document.getElementById('np-notes')?.value.trim()??'',
+    dentist_id:getDentistId()
+  };
+  const{error:pe}=await db.from('patients').insert(newP);
+  if(pe){toast('Error al crear paciente.',true);return null;}
+  S.patients.push(newP);S.patients.sort((a,b)=>a.name.localeCompare(b.name));
+  return newP;
+}
 
 // ── Inline patient creation (from appointment modal) ───
 function handlePatientSelect(val){
@@ -1223,20 +1292,37 @@ function openApptModal(id=null,defDate='',defTime=''){
   const durOpts=DURS.map(v=>`<option value="${v}"${nA.duration==v?' selected':''}>${v} min</option>`).join('');
   const tyOpts=TT.map(t=>`<option value="${t.id}"${nA.type===t.id?' selected':''}>${t.label}</option>`).join('');
   const stOpts=ST.map(s=>`<option value="${s.id}"${nA.status===s.id?' selected':''}>${s.label}</option>`).join('');
+  // Determine initial mode
+  const initMode = nA.patientId ? 'existing' : (nA.temp_name ? 'temp' : 'temp');
   const body=`
-    <div class="field"><label class="field-label">Paciente *</label>
-      <select class="select" id="f-pid" onchange="handlePatientSelect(this.value)">
-        ${patOpts}
-        <option value="__new__" style="color:var(--teal);font-weight:600">➕ Crear nuevo paciente…</option>
-      </select>
-    </div>
-    <div id="new-patient-panel" style="display:none;background:var(--teal-l);border-radius:var(--r);border:1.5px solid var(--teal);padding:14px;flex-direction:column;gap:12px">
-      <div style="font-size:13px;font-weight:700;color:var(--teal)">🆕 Nuevo paciente</div>
-      <div class="field"><label class="field-label">Nombre *</label><input class="input" id="np-name" placeholder="Nombre y apellido" autocomplete="name" /></div>
-      <div class="field"><label class="field-label">Teléfono (para WhatsApp)</label><input class="input" type="tel" id="np-phone" placeholder="351-xxx-xxxx" inputmode="tel" /></div>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" id="np-btn" onclick="createPatientInline()" style="flex:1">Crear y seleccionar</button>
-        <button class="btn" onclick="cancelNewPatient()">Cancelar</button>
+    <div class="field"><label class="field-label">Paciente</label>
+      <div class="mode-tabs">
+        <button class="mode-tab${initMode==='temp'?' active':''}" data-mode="temp" onclick="setApptMode('temp')">⚡ Provisional</button>
+        <button class="mode-tab${initMode==='existing'?' active':''}" data-mode="existing" onclick="setApptMode('existing')">👥 Existente</button>
+        <button class="mode-tab${initMode==='new'?' active':''}" data-mode="new" onclick="setApptMode('new')">➕ Nuevo</button>
+      </div>
+      <div id="mode-panel-temp" class="mode-panel${initMode==='temp'?' vis':''}">
+        <div class="field"><label class="field-label">Nombre provisional</label>
+          <input class="input" id="f-temp-name" placeholder="Ej: Paciente Duarte, consulta rápida…" value="${esc(nA.temp_name??'')}" />
+          <div style="font-size:11px;color:var(--text3);margin-top:4px">Solo para este turno, sin crear ficha de paciente</div>
+        </div>
+      </div>
+      <div id="mode-panel-existing" class="mode-panel${initMode==='existing'?' vis':''}">
+        <select class="select" id="f-pid">
+          <option value="">— Seleccioná un paciente —</option>
+          ${patOpts}
+        </select>
+      </div>
+      <div id="mode-panel-new" class="mode-panel teal${initMode==='new'?' vis':''}">
+        <div style="font-size:13px;font-weight:700;color:var(--teal)">Nueva ficha de paciente</div>
+        <div class="field"><label class="field-label">Nombre *</label><input class="input" id="np-name" placeholder="Nombre y apellido" autocomplete="name" /></div>
+        <div class="grid-2">
+          <div class="field"><label class="field-label">Teléfono</label><input class="input" type="tel" id="np-phone" placeholder="351-xxx-xxxx" inputmode="tel" /></div>
+          <div class="field"><label class="field-label">DNI</label><input class="input" id="np-dni" placeholder="XX.XXX.XXX" inputmode="numeric" /></div>
+        </div>
+        <div class="field"><label class="field-label">Email</label><input class="input" type="email" id="np-email" placeholder="email@ejemplo.com" inputmode="email" /></div>
+        <div class="field"><label class="field-label">Fecha de nacimiento</label><input class="input" type="date" id="np-bdate" /></div>
+        <div class="field"><label class="field-label">Notas clínicas</label><textarea class="textarea" id="np-notes" placeholder="Alergias, medicamentos…" style="min-height:60px"></textarea></div>
       </div>
     </div>
     <div class="grid-2">
@@ -1278,12 +1364,41 @@ function openApptModal(id=null,defDate='',defTime=''){
   openModal(isEdit?'Editar turno':'Nuevo turno',body,foot);
 }
 async function saveAppt(id){
-  const pid=document.getElementById('f-pid').value,date=document.getElementById('f-date').value;
+  const date=document.getElementById('f-date').value;
   const hour=document.getElementById('f-hour').value,min=document.getElementById('f-min').value;
   const time=`${hour}:${min}`;
-  if(!pid||!date||!time){alert('Completá los campos obligatorios.');return;}
-  const row={id:id??uid('a'),patient_id:pid,date,time,duration:parseInt(document.getElementById('f-dur').value),type:document.getElementById('f-type').value,status:document.getElementById('f-status').value,notes:document.getElementById('f-notes').value.trim(),amount:parseFloat(document.getElementById('f-amount').value)||0,paid_amount:parseFloat(document.getElementById('f-paid').value)||0,payment_status:document.getElementById('f-pstatus').value};
-  disableModalBtns();const{error}=await db.from('appointments').upsert(row);
+  if(!date){alert('Completá la fecha.');return;}
+
+  // Determine active mode
+  const activeMode=document.querySelector('.mode-tab.active')?.dataset.mode??'temp';
+  let patient_id=null,temp_name='';
+
+  if(activeMode==='temp'){
+    temp_name=document.getElementById('f-temp-name')?.value.trim()??'';
+    if(!temp_name){toast('Ingresá un nombre provisional.',true);return;}
+  } else if(activeMode==='existing'){
+    patient_id=document.getElementById('f-pid')?.value??'';
+    if(!patient_id){toast('Seleccioná un paciente.',true);return;}
+  } else if(activeMode==='new'){
+    disableModalBtns();
+    const newP=await saveNewPatientAndAppt(id);
+    if(!newP){enableModalBtns();return;}
+    patient_id=newP.id;
+    toast(`Paciente ${newP.name} creado ✓`);
+  }
+
+  const row={
+    id:id??uid('a'),patient_id,temp_name,date,time,
+    duration:parseInt(document.getElementById('f-dur').value),
+    type:document.getElementById('f-type').value,
+    status:document.getElementById('f-status').value,
+    notes:document.getElementById('f-notes').value.trim(),
+    amount:parseFloat(document.getElementById('f-amount').value)||0,
+    paid_amount:parseFloat(document.getElementById('f-paid').value)||0,
+    payment_status:document.getElementById('f-pstatus').value,
+  };
+  disableModalBtns();
+  const{error}=await db.from('appointments').upsert(row);
   if(error){toast('Error al guardar.',true);enableModalBtns();return;}
   toast('Turno guardado ✓');await loadData();closeModal();renderUI();
 }
