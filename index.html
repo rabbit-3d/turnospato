@@ -529,7 +529,7 @@ async function doLogin(){
     USER.isAdmin=true;USER.profile={id:'admin',name:'Mateo',email:CONFIG.adminEmail,role:'admin'};USER.viewAs=null;
     saveSession();await enterApp();return;
   }
-  const{data,error}=await db.from('profiles').select('*').eq('email',email).single();
+  const{data,error}=await db.from('consultorio_profiles').select('*').eq('email',email).single();
   if(!error&&data&&data.password===pass){
     USER.isAdmin=false;USER.profile=data;USER.viewAs=null;
     saveSession();await enterApp();return;
@@ -568,8 +568,8 @@ const S={
 async function loadData(){
   const did=getDentistId();if(!did){S.patients=[];S.appointments=[];return;}
   const[{data:pts,error:e1},{data:appts,error:e2}]=await Promise.all([
-    db.from('patients').select('*').eq('dentist_id',did).order('name'),
-    db.from('appointments').select('*').eq('dentist_id',did).order('date').order('time'),
+    db.from('consultorio_patients').select('*').eq('dentist_id',did).order('name'),
+    db.from('consultorio_appointments').select('*').eq('dentist_id',did).order('date').order('time'),
   ]);
   if(e1)toast('Error al cargar pacientes.',true);
   if(e2)toast('Error al cargar turnos.',true);
@@ -577,7 +577,7 @@ async function loadData(){
   S.appointments=appts??[];
 }
 async function loadDentists(){
-  const{data,error}=await db.from('profiles').select('*').order('name');
+  const{data,error}=await db.from('consultorio_profiles').select('*').order('name');
   if(error){toast('Error al cargar odontólogos.',true);return;}
   S.dentists=data??[];
 }
@@ -1005,7 +1005,7 @@ async function renderAdmin(){
   setTopbar(`<span class="topbar-title">Odontólogos</span>`,`<button class="btn btn-purple btn-sm" onclick="openDentistModal()">+ Agregar</button>`);
   showLoading();await loadDentists();
   const cntMap={};
-  if(S.dentists.length>0){const{data:pts}=await db.from('patients').select('id,dentist_id');(pts??[]).forEach(p=>{cntMap[p.dentist_id]=(cntMap[p.dentist_id]??0)+1;});}
+  if(S.dentists.length>0){const{data:pts}=await db.from('consultorio_patients').select('id,dentist_id');(pts??[]).forEach(p=>{cntMap[p.dentist_id]=(cntMap[p.dentist_id]??0)+1;});}
   const cards=S.dentists.length===0
     ?`<div class="empty-state"><div class="ei">👥</div><div class="et">Sin odontólogos registrados</div></div>`
     :S.dentists.map(d=>{
@@ -1037,13 +1037,13 @@ async function saveDentist(id){
   if(!name||!email){alert('Nombre y email son obligatorios.');return;}
   if(!id&&!pass){alert('La contraseña es obligatoria.');return;}
   const row={id:id??uid('d'),name,email};if(pass)row.password=pass;
-  disableModalBtns();const{error}=await db.from('profiles').upsert(row);
+  disableModalBtns();const{error}=await db.from('consultorio_profiles').upsert(row);
   if(error){toast('Error al guardar.',true);enableModalBtns();return;}
   toast(`Odontólogo ${id?'actualizado':'creado'} ✓`);closeModal();renderAdmin();
 }
 async function deleteDentist(id){
   const d=S.dentists.find(x=>x.id===id);if(!confirm(`¿Eliminar a ${d?.name}?`))return;
-  disableModalBtns();const{error}=await db.from('profiles').delete().eq('id',id);
+  disableModalBtns();const{error}=await db.from('consultorio_profiles').delete().eq('id',id);
   if(error){toast('Error.',true);enableModalBtns();return;}
   toast('Odontólogo eliminado.');closeModal();renderAdmin();
 }
@@ -1199,8 +1199,8 @@ async function odSelectPatient(id){
   }
   // Load odontogram + notes in parallel
   const[{data:od},{data:notes}]=await Promise.all([
-    db.from('odontograms').select('data').eq('patient_id',id).single(),
-    db.from('clinical_notes').select('*').eq('patient_id',id).order('created_at',{ascending:false}),
+    db.from('consultorio_odontograms').select('data').eq('patient_id',id).single(),
+    db.from('consultorio_clinical_notes').select('*').eq('patient_id',id).order('created_at',{ascending:false}),
   ]);
   if(od?.data)OD.marks=od.data;
   OD.notes=notes??[];
@@ -1233,7 +1233,7 @@ async function addNote(){
   if(!content){toast('Escribí algo antes de agregar.',true);return;}
   if(!OD.patientId){toast('Seleccioná un paciente primero.',true);return;}
   const note={id:uid('n'),patient_id:OD.patientId,content,created_at:new Date().toISOString()};
-  const{error}=await db.from('clinical_notes').insert(note);
+  const{error}=await db.from('consultorio_clinical_notes').insert(note);
   if(error){toast('Error al guardar la nota.',true);return;}
   OD.notes.unshift(note);
   if(input)input.value='';
@@ -1243,7 +1243,7 @@ async function addNote(){
 
 async function deleteNote(id){
   if(!confirm('¿Eliminar esta nota?'))return;
-  const{error}=await db.from('clinical_notes').delete().eq('id',id);
+  const{error}=await db.from('consultorio_clinical_notes').delete().eq('id',id);
   if(error){toast('Error al eliminar.',true);return;}
   OD.notes=OD.notes.filter(n=>n.id!==id);
   renderNotes();
@@ -1252,7 +1252,7 @@ async function deleteNote(id){
 async function odSave(){
   if(!OD.patientId)return;
   const el=document.getElementById('od-saving');if(el)el.style.display='inline';
-  const{error}=await db.from('odontograms').upsert({patient_id:OD.patientId,data:OD.marks,updated_at:new Date().toISOString()});
+  const{error}=await db.from('consultorio_odontograms').upsert({patient_id:OD.patientId,data:OD.marks,updated_at:new Date().toISOString()});
   if(el)el.style.display='none';
   error?toast('Error al guardar.',true):toast('Odontograma guardado ✓');
 }
@@ -1355,7 +1355,7 @@ async function saveNewPatientAndAppt(apptId){
     notes:document.getElementById('np-notes')?.value.trim()??'',
     dentist_id:getDentistId()
   };
-  const{error:pe}=await db.from('patients').insert(newP);
+  const{error:pe}=await db.from('consultorio_patients').insert(newP);
   if(pe){toast('Error al crear paciente.',true);return null;}
   S.patients.push(newP);S.patients.sort((a,b)=>a.name.localeCompare(b.name));
   return newP;
@@ -1385,7 +1385,7 @@ async function createPatientInline(){
   const btn=document.getElementById('np-btn');
   if(btn){btn.disabled=true;btn.textContent='Creando…';}
   const newP={id:uid('p'),name,phone,email:'',dni:'',birthdate:'',notes:'',dentist_id:getDentistId()};
-  const{error}=await db.from('patients').insert(newP);
+  const{error}=await db.from('consultorio_patients').insert(newP);
   if(error){
     toast('Error al crear paciente.',true);
     if(btn){btn.disabled=false;btn.textContent='Crear y seleccionar';}
@@ -1524,13 +1524,13 @@ async function saveAppt(id){
     payment_status:document.getElementById('f-pstatus').value,
   };
   disableModalBtns();
-  const{error}=await db.from('appointments').upsert(row);
+  const{error}=await db.from('consultorio_appointments').upsert(row);
   if(error){toast('Error al guardar.',true);enableModalBtns();return;}
   toast('Turno guardado ✓');await loadData();closeModal();renderUI();
 }
 async function deleteAppt(id){
   if(!confirm('¿Eliminar este turno?'))return;disableModalBtns();
-  const{error}=await db.from('appointments').delete().eq('id',id);
+  const{error}=await db.from('consultorio_appointments').delete().eq('id',id);
   if(error){toast('Error.',true);enableModalBtns();return;}
   toast('Turno eliminado.');await loadData();closeModal();renderUI();
 }
@@ -1554,13 +1554,13 @@ function openPatientModal(id=null){
 async function savePatient(id){
   const name=document.getElementById('f-name').value.trim();if(!name){alert('El nombre es obligatorio.');return;}
   const row={id:id??uid('p'),name,phone:document.getElementById('f-phone').value.trim(),email:document.getElementById('f-email').value.trim(),dni:document.getElementById('f-dni').value.trim(),birthdate:document.getElementById('f-bdate').value,notes:document.getElementById('f-notes').value.trim(),dentist_id:getDentistId()};
-  disableModalBtns();const{error}=await db.from('patients').upsert(row);
+  disableModalBtns();const{error}=await db.from('consultorio_patients').upsert(row);
   if(error){toast('Error al guardar.',true);enableModalBtns();return;}
   toast('Paciente guardado ✓');await loadData();closeModal();renderUI();
 }
 async function deletePatient(id){
   const p=S.patients.find(x=>x.id===id);if(!confirm(`¿Eliminar a ${p?.name}?`))return;
-  disableModalBtns();const{error}=await db.from('patients').delete().eq('id',id);
+  disableModalBtns();const{error}=await db.from('consultorio_patients').delete().eq('id',id);
   if(error){toast('Error.',true);enableModalBtns();return;}
   toast('Paciente eliminado.');await loadData();closeModal();renderUI();
 }
