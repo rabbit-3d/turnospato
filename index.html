@@ -298,8 +298,11 @@
     .odonto-patient-sel{margin-bottom:16px;}
     .odonto-tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
     .odonto-tool{padding:8px 16px;border-radius:99px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-weight:600;color:var(--text2);}
-    .odonto-tool.fractura.active{background:#DC2626;color:#fff;border-color:transparent;}
+    .odonto-tool.fractura.active   {background:#DC2626;color:#fff;border-color:transparent;}
     .odonto-tool.restauracion.active{background:#185FA5;color:#fff;border-color:transparent;}
+    .odonto-tool.extraccion.active {background:#374151;color:#fff;border-color:transparent;}
+    .odonto-tool.puente.active     {background:#7C3AED;color:#fff;border-color:transparent;}
+    .odonto-tool.borrar.active     {background:#6B7280;color:#fff;border-color:transparent;}
     .odonto-tool.extraccion.active{background:#374151;color:#fff;border-color:transparent;}
     .odonto-tool.puente.active{background:#7C3AED;color:#fff;border-color:transparent;}
     .odonto-tool.borrar.active{background:#6B7280;color:#fff;border-color:transparent;}
@@ -1049,7 +1052,7 @@ async function deleteDentist(id){
 }
 
 // ── Odontogram ─────────────────────────────────────
-const OD={patientId:null,tool:'fractura',marks:[],bridgeFirst:null,notes:[]};
+const OD={patientId:null,tool:'fractura',estado:'rojo',marks:[],bridgeFirst:null,notes:[]};
 function renderOdonto(){
   setTopbar(`<span class="topbar-title">Odontograma</span>`);
   const patOpts=S.patients.map(p=>`<option value="${p.id}"${OD.patientId===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
@@ -1061,7 +1064,12 @@ function renderOdonto(){
       </select>
     </div>
     <div class="odonto-tools">
-      ${['fractura','restauracion','extraccion','puente','borrar'].map(t=>`<button class="odonto-tool ${t}${OD.tool===t?' active':''}" onclick="odSetTool('${t}')">${{fractura:'🔴 Fractura',restauracion:'🔵 Restauración',extraccion:'✕ Extracción',puente:'— Puente',borrar:'🧹 Borrar'}[t]}</button>`).join('')}
+      ${['fractura','restauracion','extraccion','puente','borrar'].map(t=>`<button class="odonto-tool ${t}${OD.tool===t?' active':''}" onclick="odSetTool('${t}')">${{fractura:'Fractura',restauracion:'Restauración',extraccion:'✕ Extracción',puente:'— Puente',borrar:'🧹 Borrar'}[t]}</button>`).join('')}
+      <div style="display:flex;align-items:center;gap:8px;margin-left:8px;padding-left:12px;border-left:1px solid var(--border)">
+        <span style="font-size:11px;font-weight:700;color:var(--text3);white-space:nowrap">Estado:</span>
+        <button class="estado-btn${OD.estado==='rojo'?' est-active':''}" data-est="rojo" onclick="setEstado('rojo')" style="background:#FEE2E2;color:#DC2626;border:2px solid ${OD.estado==='rojo'?'#DC2626':'transparent'};border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">🔴 Realizado</button>
+        <button class="estado-btn${OD.estado==='azul'?' est-active':''}" data-est="azul" onclick="setEstado('azul')" style="background:#E6F1FB;color:#185FA5;border:2px solid ${OD.estado==='azul'?'#185FA5':'transparent'};border-radius:99px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">🔵 Por hacer</button>
+      </div>
     </div>
     <div class="odonto-scroll"><div class="odonto-canvas-wrap" id="od-perm-wrap">
       <canvas id="od-c1" width="810" height="210" style="z-index:1"></canvas>
@@ -1077,10 +1085,11 @@ function renderOdonto(){
       <canvas id="od-p4" width="810" height="210" style="z-index:4"></canvas>
     </div></div>
     <div class="odonto-legend" style="margin:12px 0">
-      <div class="ol-item"><div class="ol-dot" style="background:#DC2626"></div>Fractura</div>
-      <div class="ol-item"><div class="ol-dot" style="background:#185FA5"></div>Restauración</div>
-      <div class="ol-item"><div class="ol-dot" style="border:2px solid #374151;background:transparent"></div>Extracción</div>
-      <div class="ol-item"><div class="ol-dot" style="background:#7C3AED;height:3px;border-radius:0;margin-top:5px"></div>Puente</div>
+      <div class="ol-item"><div class="ol-dot" style="background:repeating-linear-gradient(-45deg,#DC2626,#DC2626 2px,transparent 2px,transparent 5px);border:1px solid #DC2626"></div>Fractura</div>
+      <div class="ol-item"><div class="ol-dot" style="background:#DC2626"></div>Restauración</div>
+      <div class="ol-item" style="gap:8px"><span style="font-size:11px;color:var(--text3)">🔴 Realizado · 🔵 Por hacer</span></div>
+      <div class="ol-item"><div class="ol-dot" style="border:2px solid #374151;background:transparent;font-size:9px;display:flex;align-items:center;justify-content:center;color:#374151">✕</div>Extracción</div>
+      <div class="ol-item"><div class="ol-dot" style="background:#DC2626;height:3px;border-radius:0;margin-top:5px"></div>Puente</div>
     </div>
     <div style="display:flex;justify-content:flex-end;gap:10px;padding-top:4px;border-top:1px solid var(--border)">
       <span id="od-saving" style="font-size:13px;color:var(--text3);align-self:center;display:none">Guardando…</span>
@@ -1239,15 +1248,48 @@ function odDrawMark(mark){
   const pos=toothPos(mark.diente);if(!pos)return;
   const{ix,iy,tp}=pos;
   const ctx=tp==='perm'?odCtx(2):odPCtx(2);if(!ctx)return;
-  if(mark.accion===1)odFillSec(ctx,ix,iy,mark.seccion,'#DC2626');
-  else if(mark.accion===2)odFillSec(ctx,ix,iy,mark.seccion,'#185FA5');
+  const color=mark.color||(mark.accion===1?'#DC2626':mark.accion===2?'#185FA5':'#374151');
+
+  if(mark.accion===1){
+    // Fractura: líneas diagonales sobre la sección del diente
+    // Primero dibujamos el contorno de la sección en el color
+    odFillSec(ctx,ix,iy,mark.seccion,'transparent',color);
+    // Luego líneas diagonales dentro de la sección usando clip
+    ctx.save();
+    // Clip to the section shape
+    const m=OD_M,q=m/4,t=q*3;
+    const S5={1:[[ix,iy],[m+ix,iy],[t+ix,q+iy],[q+ix,q+iy]],
+              2:[[t+ix,q+iy],[m+ix,iy],[m+ix,m+iy],[t+ix,t+iy]],
+              3:[[q+ix,t+iy],[t+ix,t+iy],[m+ix,m+iy],[ix,m+iy]],
+              4:[[ix,iy],[q+ix,q+iy],[q+ix,t+iy],[ix,m+iy]],
+              5:[[q+ix,q+iy],[t+ix,q+iy],[t+ix,t+iy],[q+ix,t+iy]]};
+    const pts=S5[mark.seccion];
+    if(pts){
+      ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+      pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
+      ctx.closePath();ctx.clip();
+      // Draw diagonal lines
+      ctx.strokeStyle=color;ctx.lineWidth=1.5;
+      for(let d=-OD_M;d<=OD_M*2;d+=6){
+        ctx.beginPath();ctx.moveTo(ix+d,iy);ctx.lineTo(ix+d+OD_M,iy+OD_M);ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+  else if(mark.accion===2){
+    // Restauración: sección rellena sólida
+    odFillSec(ctx,ix,iy,mark.seccion,color);
+  }
   else if(mark.accion===3){
-    ctx.strokeStyle='#374151';ctx.lineWidth=3;
-    ctx.beginPath();ctx.moveTo(ix,iy);ctx.lineTo(ix+OD_M,iy+OD_M);
-    ctx.moveTo(ix+OD_M,iy);ctx.lineTo(ix,iy+OD_M);ctx.stroke();ctx.lineWidth=1;
-  }else if(mark.accion===4){
+    // Extracción: X sobre el diente
+    ctx.strokeStyle=color;ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(ix+4,iy+4);ctx.lineTo(ix+OD_M-4,iy+OD_M-4);
+    ctx.moveTo(ix+OD_M-4,iy+4);ctx.lineTo(ix+4,iy+OD_M-4);ctx.stroke();ctx.lineWidth=1;
+  }
+  else if(mark.accion===4){
+    // Puente: línea entre dos dientes
     const p2=toothPos(mark.diente2);if(!p2||p2.tp!==tp)return;
-    ctx.strokeStyle='#7C3AED';ctx.lineWidth=4;
+    ctx.strokeStyle=color;ctx.lineWidth=4;
     ctx.beginPath();ctx.moveTo(ix+OD_M/2,iy+OD_M+5);ctx.lineTo(p2.ix+OD_M/2,p2.iy+OD_M+5);
     ctx.stroke();ctx.lineWidth=1;
   }
@@ -1283,20 +1325,23 @@ function odHandleClick(e,tp){
   if(OD.tool==='fractura'||OD.tool==='restauracion'){
     const sec=odWhichSec(x-ix,y-iy);if(!sec)return;
     const accion=OD.tool==='fractura'?1:2;
+    const color=OD.estado==='rojo'?'#DC2626':'#185FA5';
     OD.marks=OD.marks.filter(m=>!(m.diente===diente&&m.seccion===sec&&(m.accion===1||m.accion===2)));
-    OD.marks.push({diente,seccion:sec,accion,diente2:0});odRedraw();
+    OD.marks.push({diente,seccion:sec,accion,color,diente2:0});odRedraw();
   }else if(OD.tool==='extraccion'){
+    const color=OD.estado==='rojo'?'#DC2626':'#185FA5';
     OD.marks=OD.marks.filter(m=>!(m.diente===diente&&m.accion===3));
-    OD.marks.push({diente,seccion:0,accion:3,diente2:0});odRedraw();
+    OD.marks.push({diente,seccion:0,accion:3,color,diente2:0});odRedraw();
   }else if(OD.tool==='puente'){
+    const color=OD.estado==='rojo'?'#DC2626':'#185FA5';
     if(!OD.bridgeFirst){
-      OD.bridgeFirst={diente,tp};
+      OD.bridgeFirst={diente,tp,color};
       const c4=document.getElementById(c4n)?.getContext('2d');
-      if(c4){c4.clearRect(0,0,810,210);c4.globalAlpha=0.4;c4.fillStyle='#7C3AED';c4.fillRect(ix,iy,OD_M,OD_M);c4.globalAlpha=1;}
+      if(c4){c4.clearRect(0,0,810,210);c4.globalAlpha=0.4;c4.fillStyle=color;c4.fillRect(ix,iy,OD_M,OD_M);c4.globalAlpha=1;}
       toast('Ahora tocá el segundo diente del puente.');
     }else{
       if(OD.bridgeFirst.tp===tp&&OD.bridgeFirst.diente!==diente){
-        OD.marks.push({diente:OD.bridgeFirst.diente,seccion:0,accion:4,diente2:diente});
+        OD.marks.push({diente:OD.bridgeFirst.diente,seccion:0,accion:4,color:OD.bridgeFirst.color,diente2:diente});
         odRedraw();
       }
       OD.bridgeFirst=null;
@@ -1305,6 +1350,14 @@ function odHandleClick(e,tp){
   }else if(OD.tool==='borrar'){
     OD.marks=OD.marks.filter(m=>m.diente!==diente&&m.diente2!==diente);odRedraw();
   }
+}
+
+function setEstado(e){
+  OD.estado=e;
+  document.querySelectorAll('.estado-btn').forEach(b=>{
+    const isActive=b.dataset.est===e;
+    b.style.borderColor=isActive?(e==='rojo'?'#DC2626':'#185FA5'):'transparent';
+  });
 }
 
 function odSetTool(t){
