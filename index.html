@@ -1049,7 +1049,7 @@ async function deleteDentist(id){
 }
 
 // ── Odontogram ─────────────────────────────────────
-const OD={patientId:null,tool:'fractura',marks:[],bridgeFirst:0,notes:[]};
+const OD={patientId:null,tool:'fractura',marks:[],bridgeFirst:null,notes:[]};
 function renderOdonto(){
   setTopbar(`<span class="topbar-title">Odontograma</span>`);
   const patOpts=S.patients.map(p=>`<option value="${p.id}"${OD.patientId===p.id?' selected':''}>${esc(p.name)}</option>`).join('');
@@ -1063,11 +1063,18 @@ function renderOdonto(){
     <div class="odonto-tools">
       ${['fractura','restauracion','extraccion','puente','borrar'].map(t=>`<button class="odonto-tool ${t}${OD.tool===t?' active':''}" onclick="odSetTool('${t}')">${{fractura:'🔴 Fractura',restauracion:'🔵 Restauración',extraccion:'✕ Extracción',puente:'— Puente',borrar:'🧹 Borrar'}[t]}</button>`).join('')}
     </div>
-    <div class="odonto-scroll"><div class="odonto-canvas-wrap">
+    <div class="odonto-scroll"><div class="odonto-canvas-wrap" id="od-perm-wrap">
       <canvas id="od-c1" width="810" height="210" style="z-index:1"></canvas>
       <canvas id="od-c2" width="810" height="210" style="z-index:2"></canvas>
       <canvas id="od-c3" width="810" height="210" style="z-index:3"></canvas>
       <canvas id="od-c4" width="810" height="210" style="z-index:4"></canvas>
+    </div></div>
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin:14px 0 6px;padding-top:10px;border-top:1px solid var(--border)">Temporarios · Dientes de leche</div>
+    <div class="odonto-scroll"><div class="odonto-canvas-wrap" id="od-prim-wrap">
+      <canvas id="od-p1" width="810" height="210" style="z-index:1"></canvas>
+      <canvas id="od-p2" width="810" height="210" style="z-index:2"></canvas>
+      <canvas id="od-p3" width="810" height="210" style="z-index:3"></canvas>
+      <canvas id="od-p4" width="810" height="210" style="z-index:4"></canvas>
     </div></div>
     <div class="odonto-legend" style="margin:12px 0">
       <div class="ol-item"><div class="ol-dot" style="background:#DC2626"></div>Fractura</div>
@@ -1094,87 +1101,187 @@ function renderOdonto(){
   </div>`;
   odInitCanvas();if(OD.patientId)odRedraw();
 }
-const MED=40,SEP=10;
-const odCtx=n=>document.getElementById(`od-c${n}`)?.getContext('2d');
+// FDI tooth arrays — display order left→right on screen
+const PERM_UP=[18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28];
+const PERM_LO=[48,47,46,45,44,43,42,41,31,32,33,34,35,36,37,38];
+const PRIM_UP=[55,54,53,52,51,61,62,63,64,65];
+const PRIM_LO=[85,84,83,82,81,71,72,73,74,75];
+
+const OD_M=40,OD_S=10; // tooth size and gap
+const OD_POFF=Math.round((810-(10*OD_M+9*OD_S))/2); // primary offset to center 10 teeth = 160
+const OD_IYU=20, OD_IYL=OD_M+100; // y for upper/lower rows
+
+// Canvas context helpers
+const odCtx =n=>document.getElementById(`od-c${n}`)?.getContext('2d');
+const odPCtx=n=>document.getElementById(`od-p${n}`)?.getContext('2d');
 
 function getOdScale(){
   if(!isMobile())return 1;
-  const avail=window.innerWidth-40; // 20px padding each side
-  return Math.min(1, avail/810);
+  return Math.min(1,(window.innerWidth-40)/810);
 }
 
 function odApplyScale(){
-  const wrap=document.querySelector('.odonto-canvas-wrap');
-  if(!wrap)return;
   const sc=getOdScale();
-  wrap.style.transformOrigin='top left';
-  wrap.style.transform=sc<1?`scale(${sc})`:'none';
-  const scroll=document.querySelector('.odonto-scroll');
-  if(scroll){
-    scroll.style.height=sc<1?Math.ceil(210*sc+4)+'px':'auto';
-    scroll.style.width=sc<1?Math.ceil(810*sc)+'px':'auto';
-  }
+  ['od-perm-wrap','od-prim-wrap'].forEach(id=>{
+    const w=document.getElementById(id);if(!w)return;
+    w.style.transformOrigin='top left';
+    w.style.transform=sc<1?`scale(${sc})`:'none';
+  });
+  document.querySelectorAll('.odonto-scroll').forEach(el=>{
+    el.style.height=sc<1?Math.ceil(210*sc+4)+'px':'auto';
+    el.style.width =sc<1?Math.ceil(810*sc)+'px':'auto';
+  });
+}
+
+// Get canvas position {ix,iy,tp} for a FDI tooth number
+function toothPos(num){
+  let i;
+  i=PERM_UP.indexOf(num); if(i!==-1)return{ix:OD_S+i*50,iy:OD_IYU,tp:'perm'};
+  i=PERM_LO.indexOf(num); if(i!==-1)return{ix:OD_S+i*50,iy:OD_IYL,tp:'perm'};
+  i=PRIM_UP.indexOf(num); if(i!==-1)return{ix:OD_POFF+i*50,iy:OD_IYU,tp:'prim'};
+  i=PRIM_LO.indexOf(num); if(i!==-1)return{ix:OD_POFF+i*50,iy:OD_IYL,tp:'prim'};
+  return null;
+}
+
+// Find which tooth the user tapped
+function odFindTooth(x,y,tp){
+  const up=tp==='perm'?PERM_UP:PRIM_UP;
+  const lo=tp==='perm'?PERM_LO:PRIM_LO;
+  const off=tp==='perm'?OD_S:OD_POFF;
+  const check=(arr,iy)=>{
+    if(y<iy||y>iy+OD_M)return null;
+    for(let i=0;i<arr.length;i++){
+      const ix=off+i*50;
+      if(x>=ix&&x<=ix+OD_M)return{diente:arr[i],ix,iy};
+    }
+    return null;
+  };
+  return check(up,OD_IYU)||check(lo,OD_IYL)||null;
+}
+
+// Draw tooth outline (trapezoid sections)
+function odDrawOutline(ctx,ix,iy){
+  const m=OD_M,q=m/4,t=q*3;ctx.strokeStyle='#374151';
+  [[ix,iy,m+ix,iy,t+ix,q+iy,q+ix,q+iy],[t+ix,q+iy,m+ix,iy,m+ix,m+iy,t+ix,t+iy],
+   [q+ix,t+iy,t+ix,t+iy,m+ix,m+iy,ix,m+iy],[ix,iy,q+ix,q+iy,q+ix,t+iy,ix,m+iy]
+  ].forEach(pts=>{
+    ctx.beginPath();ctx.moveTo(pts[0],pts[1]);
+    for(let i=2;i<pts.length;i+=2)ctx.lineTo(pts[i],pts[i+1]);
+    ctx.closePath();ctx.stroke();
+  });
+}
+
+// Which of the 5 sections was tapped
+function odWhichSec(lx,ly){
+  const q=OD_M/4,t=q*3;
+  if(ly>0&&ly<q&&lx>ly&&ly<OD_M-lx)return 1;
+  if(lx>t&&lx<OD_M&&ly<lx&&OD_M-lx<ly)return 2;
+  if(ly>t&&ly<OD_M&&lx<ly&&lx>OD_M-ly)return 3;
+  if(lx>0&&lx<q&&ly>lx&&lx<OD_M-ly)return 4;
+  if(lx>q&&lx<t&&ly>q&&ly<t)return 5;
+  return 0;
+}
+
+// Fill one section
+function odFillSec(ctx,ix,iy,sec,fill,stroke='black'){
+  const m=OD_M,q=m/4,t=q*3;
+  const S5={1:[[ix,iy],[m+ix,iy],[t+ix,q+iy],[q+ix,q+iy]],
+            2:[[t+ix,q+iy],[m+ix,iy],[m+ix,m+iy],[t+ix,t+iy]],
+            3:[[q+ix,t+iy],[t+ix,t+iy],[m+ix,m+iy],[ix,m+iy]],
+            4:[[ix,iy],[q+ix,q+iy],[q+ix,t+iy],[ix,m+iy]],
+            5:[[q+ix,q+iy],[t+ix,q+iy],[t+ix,t+iy],[q+ix,t+iy]]};
+  const pts=S5[sec];if(!pts)return;
+  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);
+  pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));
+  ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.stroke();
+}
+
+// Initialize one set of canvases (permanent or primary)
+function odInitSet(tp){
+  const c1=tp==='perm'?odCtx(1):odPCtx(1);if(!c1)return;
+  const up=tp==='perm'?PERM_UP:PRIM_UP;
+  const lo=tp==='perm'?PERM_LO:PRIM_LO;
+  const off=tp==='perm'?OD_S:OD_POFF;
+  c1.clearRect(0,0,810,210);
+  // Draw upper teeth + numbers
+  up.forEach((num,i)=>{
+    const ix=off+i*50;
+    odDrawOutline(c1,ix,OD_IYU);
+    c1.font='bold 10pt Calibri';c1.textAlign='center';c1.fillStyle='#185FA5';
+    c1.fillText(num,ix+OD_M/2,12);
+  });
+  // Draw lower teeth + numbers
+  lo.forEach((num,i)=>{
+    const ix=off+i*50;
+    odDrawOutline(c1,ix,OD_IYL);
+    c1.font='bold 10pt Calibri';c1.textAlign='center';c1.fillStyle='#185FA5';
+    c1.fillText(num,ix+OD_M/2,OD_IYL-8);
+  });
+  // Center divider line (between quadrants, at x=405)
+  c1.strokeStyle='#94A3B8';c1.lineWidth=1.5;c1.setLineDash([4,4]);
+  c1.beginPath();c1.moveTo(405,0);c1.lineTo(405,210);c1.stroke();
+  c1.setLineDash([]);c1.lineWidth=1;
+  // Attach events to top canvas
+  const c4el=document.getElementById(tp==='perm'?'od-c4':'od-p4');if(!c4el)return;
+  const c3n=tp==='perm'?'od-c3':'od-p3';
+  c4el.onclick   =e=>odHandleClick(e,tp);
+  c4el.onmousemove=e=>odHandleHover(e,tp,c3n);
+  c4el.onmouseleave=()=>{const c=document.getElementById(c3n)?.getContext('2d');if(c)c.clearRect(0,0,810,210);};
 }
 
 function odInitCanvas(){
-  const ctx1=odCtx(1);if(!ctx1)return;ctx1.clearRect(0,0,810,210);
-  for(let x=0;x<16;x++){const ix=(x*MED)+(SEP*x)+SEP,iy=20;odDrawOutline(ctx1,ix,iy);ctx1.font='10pt Calibri';ctx1.textAlign='center';ctx1.fillStyle='#185FA5';ctx1.fillText(x+1,ix+MED/2,12);}
-  for(let x=0;x<16;x++){const ix=(x*MED)+(SEP*x)+SEP,iy=MED+100;odDrawOutline(ctx1,ix,iy);ctx1.font='10pt Calibri';ctx1.textAlign='center';ctx1.fillStyle='#185FA5';ctx1.fillText(x+17,ix+MED/2,iy-8);}
-  const c4=document.getElementById('od-c4');if(!c4)return;
-  c4.onclick=odHandleClick;c4.onmousemove=odHandleHover;c4.onmouseleave=()=>{const c=odCtx(3);if(c)c.clearRect(0,0,810,210);};
+  odInitSet('perm');
+  odInitSet('prim');
   odApplyScale();
 }
-function odDrawOutline(ctx,ix,iy){
-  const m=MED,q=m/4,t=q*3;ctx.strokeStyle='#374151';
-  [[ix,iy,m+ix,iy,t+ix,q+iy,q+ix,q+iy],[t+ix,q+iy,m+ix,iy,m+ix,m+iy,t+ix,t+iy],[q+ix,t+iy,t+ix,t+iy,m+ix,m+iy,ix,m+iy],[ix,iy,q+ix,q+iy,q+ix,t+iy,ix,m+iy]].forEach(pts=>{
-    ctx.beginPath();ctx.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)ctx.lineTo(pts[i],pts[i+1]);ctx.closePath();ctx.stroke();
-  });
+
+function odDrawMark(mark){
+  const pos=toothPos(mark.diente);if(!pos)return;
+  const{ix,iy,tp}=pos;
+  const ctx=tp==='perm'?odCtx(2):odPCtx(2);if(!ctx)return;
+  if(mark.accion===1)odFillSec(ctx,ix,iy,mark.seccion,'#DC2626');
+  else if(mark.accion===2)odFillSec(ctx,ix,iy,mark.seccion,'#185FA5');
+  else if(mark.accion===3){
+    ctx.strokeStyle='#374151';ctx.lineWidth=3;
+    ctx.beginPath();ctx.moveTo(ix,iy);ctx.lineTo(ix+OD_M,iy+OD_M);
+    ctx.moveTo(ix+OD_M,iy);ctx.lineTo(ix,iy+OD_M);ctx.stroke();ctx.lineWidth=1;
+  }else if(mark.accion===4){
+    const p2=toothPos(mark.diente2);if(!p2||p2.tp!==tp)return;
+    ctx.strokeStyle='#7C3AED';ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(ix+OD_M/2,iy+OD_M+5);ctx.lineTo(p2.ix+OD_M/2,p2.iy+OD_M+5);
+    ctx.stroke();ctx.lineWidth=1;
+  }
 }
-function odPos(n){let idx=n-1,iy=20;if(idx>=16){idx-=16;iy=MED+100;}return{ix:(idx*MED)+(SEP*idx)+SEP,iy};}
-function odWhichTooth(x,y){
-  for(const{iy,base}of[{iy:20,base:1},{iy:MED+100,base:17}]){if(y>=iy&&y<=iy+MED){for(let i=0;i<16;i++){const ix=(i*MED)+(SEP*i)+SEP;if(x>=ix&&x<=ix+MED)return{diente:base+i,ix,iy};}}}return null;
+
+function odRedraw(){
+  [odCtx(2),odPCtx(2)].forEach(c=>{if(c)c.clearRect(0,0,810,210);});
+  OD.marks.forEach(m=>odDrawMark(m));
 }
-function odWhichSection(lx,ly){
-  const q=MED/4,t=q*3;
-  if(ly>0&&ly<q&&lx>ly&&ly<MED-lx)return 1;if(lx>t&&lx<MED&&ly<lx&&MED-lx<ly)return 2;
-  if(ly>t&&ly<MED&&lx<ly&&lx>MED-ly)return 3;if(lx>0&&lx<q&&ly>lx&&lx<MED-ly)return 4;
-  if(lx>q&&lx<t&&ly>q&&ly<t)return 5;return 0;
-}
-function odFillSection(ctx,ix,iy,sec,color,stroke='black'){
-  const m=MED,q=m/4,t=q*3;
-  const S5={1:[[ix,iy],[m+ix,iy],[t+ix,q+iy],[q+ix,q+iy]],2:[[t+ix,q+iy],[m+ix,iy],[m+ix,m+iy],[t+ix,t+iy]],3:[[q+ix,t+iy],[t+ix,t+iy],[m+ix,m+iy],[ix,m+iy]],4:[[ix,iy],[q+ix,q+iy],[q+ix,t+iy],[ix,m+iy]],5:[[q+ix,q+iy],[t+ix,q+iy],[t+ix,t+iy],[q+ix,t+iy]]};
-  const pts=S5[sec];if(!pts)return;
-  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);pts.slice(1).forEach(p=>ctx.lineTo(p[0],p[1]));ctx.closePath();ctx.fillStyle=color;ctx.fill();ctx.strokeStyle=stroke;ctx.stroke();
-}
-function odDrawMark(ctx,mark){
-  const{ix,iy}=odPos(mark.diente);
-  if(mark.accion===1)odFillSection(ctx,ix,iy,mark.seccion,'#DC2626');
-  else if(mark.accion===2)odFillSection(ctx,ix,iy,mark.seccion,'#185FA5');
-  else if(mark.accion===3){ctx.strokeStyle='#374151';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(ix,iy);ctx.lineTo(ix+MED,iy+MED);ctx.moveTo(ix+MED,iy);ctx.lineTo(ix,iy+MED);ctx.stroke();ctx.lineWidth=1;}
-  else if(mark.accion===4){const p2=odPos(mark.diente2);ctx.strokeStyle='#7C3AED';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(ix+MED/2,iy+MED+5);ctx.lineTo(p2.ix+MED/2,p2.iy+MED+5);ctx.stroke();ctx.lineWidth=1;}
-}
-function odRedraw(){const c=odCtx(2);if(!c)return;c.clearRect(0,0,810,210);OD.marks.forEach(m=>odDrawMark(c,m));}
-function odHandleHover(e){
-  const rect=document.getElementById('od-c4').getBoundingClientRect();
-  const sc=getOdScale();
-  const x=(e.clientX-rect.left)/sc,y=(e.clientY-rect.top)/sc;
-  const c3=odCtx(3);if(!c3)return;c3.clearRect(0,0,810,210);
-  const hit=odWhichTooth(x,y);if(!hit)return;
-  const{ix,iy}=hit;const sec=odWhichSection(x-ix,y-iy);
+
+function odHandleHover(e,tp,c3n){
+  const c4n=tp==='perm'?'od-c4':'od-p4';
+  const rect=document.getElementById(c4n).getBoundingClientRect();
+  const sc=getOdScale(),x=(e.clientX-rect.left)/sc,y=(e.clientY-rect.top)/sc;
+  const c3=document.getElementById(c3n)?.getContext('2d');if(!c3)return;
+  c3.clearRect(0,0,810,210);
+  const hit=odFindTooth(x,y,tp);if(!hit)return;
+  const{ix,iy}=hit;const sec=odWhichSec(x-ix,y-iy);
   c3.globalAlpha=0.35;
-  if(['extraccion','puente','borrar'].includes(OD.tool)){c3.fillStyle=OD.tool==='borrar'?'#9CA3AF':'#FBBF24';c3.fillRect(ix,iy,MED,MED);}
-  else if(sec)odFillSection(c3,ix,iy,sec,'#FBBF24','transparent');
+  if(['extraccion','puente','borrar'].includes(OD.tool)){
+    c3.fillStyle=OD.tool==='borrar'?'#9CA3AF':'#FBBF24';c3.fillRect(ix,iy,OD_M,OD_M);
+  }else if(sec)odFillSec(c3,ix,iy,sec,'#FBBF24','transparent');
   c3.globalAlpha=1;
 }
-function odHandleClick(e){
+
+function odHandleClick(e,tp){
   if(!OD.patientId){toast('Seleccioná un paciente primero.',true);return;}
-  const rect=document.getElementById('od-c4').getBoundingClientRect();
-  const sc=getOdScale();
-  const x=(e.clientX-rect.left)/sc,y=(e.clientY-rect.top)/sc;
-  const hit=odWhichTooth(x,y);if(!hit)return;
+  const c4n=tp==='perm'?'od-c4':'od-p4';
+  const rect=document.getElementById(c4n).getBoundingClientRect();
+  const sc=getOdScale(),x=(e.clientX-rect.left)/sc,y=(e.clientY-rect.top)/sc;
+  const hit=odFindTooth(x,y,tp);if(!hit)return;
   const{diente,ix,iy}=hit;
   if(OD.tool==='fractura'||OD.tool==='restauracion'){
-    const sec=odWhichSection(x-ix,y-iy);if(!sec)return;
+    const sec=odWhichSec(x-ix,y-iy);if(!sec)return;
     const accion=OD.tool==='fractura'?1:2;
     OD.marks=OD.marks.filter(m=>!(m.diente===diente&&m.seccion===sec&&(m.accion===1||m.accion===2)));
     OD.marks.push({diente,seccion:sec,accion,diente2:0});odRedraw();
@@ -1182,16 +1289,31 @@ function odHandleClick(e){
     OD.marks=OD.marks.filter(m=>!(m.diente===diente&&m.accion===3));
     OD.marks.push({diente,seccion:0,accion:3,diente2:0});odRedraw();
   }else if(OD.tool==='puente'){
-    if(!OD.bridgeFirst){OD.bridgeFirst=diente;const c4=odCtx(4);c4.clearRect(0,0,810,210);c4.globalAlpha=0.4;c4.fillStyle='#7C3AED';c4.fillRect(ix,iy,MED,MED);c4.globalAlpha=1;toast('Ahora tocá el segundo diente.');}
-    else{const d1=Math.min(OD.bridgeFirst,diente),d2=Math.max(OD.bridgeFirst,diente);if(d1!==d2)OD.marks.push({diente:d1,seccion:0,accion:4,diente2:d2});odRedraw();OD.bridgeFirst=0;odCtx(4).clearRect(0,0,810,210);}
-  }else if(OD.tool==='borrar'){OD.marks=OD.marks.filter(m=>m.diente!==diente&&m.diente2!==diente);odRedraw();}
+    if(!OD.bridgeFirst){
+      OD.bridgeFirst={diente,tp};
+      const c4=document.getElementById(c4n)?.getContext('2d');
+      if(c4){c4.clearRect(0,0,810,210);c4.globalAlpha=0.4;c4.fillStyle='#7C3AED';c4.fillRect(ix,iy,OD_M,OD_M);c4.globalAlpha=1;}
+      toast('Ahora tocá el segundo diente del puente.');
+    }else{
+      if(OD.bridgeFirst.tp===tp&&OD.bridgeFirst.diente!==diente){
+        OD.marks.push({diente:OD.bridgeFirst.diente,seccion:0,accion:4,diente2:diente});
+        odRedraw();
+      }
+      OD.bridgeFirst=null;
+      const c4=document.getElementById(c4n)?.getContext('2d');if(c4)c4.clearRect(0,0,810,210);
+    }
+  }else if(OD.tool==='borrar'){
+    OD.marks=OD.marks.filter(m=>m.diente!==diente&&m.diente2!==diente);odRedraw();
+  }
 }
+
 function odSetTool(t){
-  OD.tool=t;OD.bridgeFirst=0;const c4=odCtx(4);if(c4)c4.clearRect(0,0,810,210);
+  OD.tool=t;OD.bridgeFirst=null;
+  ['od-c4','od-p4'].forEach(id=>{const c=document.getElementById(id)?.getContext('2d');if(c)c.clearRect(0,0,810,210);});
   document.querySelectorAll('.odonto-tool').forEach(b=>b.classList.toggle('active',b.classList.contains(t)));
 }
 async function odSelectPatient(id){
-  OD.patientId=id;OD.marks=[];OD.bridgeFirst=0;OD.notes=[];
+  OD.patientId=id;OD.marks=[];OD.bridgeFirst=null;OD.notes=[];
   if(!id){
     odRedraw();
     const ns=document.getElementById('notes-section');if(ns)ns.style.display='none';
